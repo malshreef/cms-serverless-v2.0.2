@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Admin Dashboard - Analytics Function (Standalone)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+
+  DatabaseSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing database credentials
+    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+
+  LambdaExecutionRoleArn:
+    Type: String
+    Description: ARN of the Lambda execution role from Phase 3
+    Default: REPLACE_WITH_YOUR_LAMBDA_ROLE_ARN
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    Tags:
+      Project: S7abt
+      Environment: !Ref Environment
+      Feature: Analytics
+
+Resources:
+  # Analytics Lambda Function (Standalone - no API Gateway event)
+  GetInsightsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-insights-${Environment}
+      CodeUri: ../backend/analytics/
+      Handler: getInsights.handler
+      Description: Get analytics and insights data for dashboard
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 512
+
+  # Lambda Permission for API Gateway (manual)
+  GetInsightsFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GetInsightsFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/GET/admin/analytics/insights'
+
+Outputs:
+  GetInsightsFunctionArn:
+    Description: ARN of the Get Insights Lambda function
+    Value: !GetAtt GetInsightsFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-GetInsightsFunction
+
+  GetInsightsFunctionName:
+    Description: Name of the Get Insights Lambda function
+    Value: !Ref GetInsightsFunction
+    Export:
+      Name: !Sub ${AWS::StackName}-GetInsightsFunctionName

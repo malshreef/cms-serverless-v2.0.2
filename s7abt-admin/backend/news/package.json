@@ -1,0 +1,26 @@
+{
+  "name": "news-api-backend",
+  "version": "1.0.0",
+  "description": "News API Backend - Delete Section Function",
+  "main": "delete.js",
+  "scripts": {
+    "install-deps": "npm install --production",
+    "package": "zip -r news-api-lambda.zip delete.js shared/ node_modules/ package.json",
+    "deploy": "aws lambda update-function-code --function-name NEWS_FUNCTION_NAME --zip-file fileb://news-api-lambda.zip"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "mysql2": "^3.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "lambda",
+    "serverless",
+    "news-api",
+    "mysql"
+  ],
+  "author": "",
+  "license": "ISC"
+}

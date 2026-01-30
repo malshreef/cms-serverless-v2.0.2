@@ -1,0 +1,333 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Admin Dashboard - Phase 3 CMS Lambda Functions
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  DatabaseSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing database credentials
+    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    Tags:
+      Project: S7abt
+      Environment: !Ref Environment
+      Phase: "3"
+
+Resources:
+  # ========================================
+  # S3 Bucket for Image Uploads
+  # ========================================
+  
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub s7abt-media-${Environment}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Project
+          Value: S7abt
+        - Key: Environment
+          Value: !Ref Environment
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${MediaBucket.Arn}/*'
+
+  # ========================================
+  # IAM Role for Lambda Functions
+  # ========================================
+  
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub s7abt-admin-phase3-lambda-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:PutObjectAcl
+                Resource: !Sub '${MediaBucket.Arn}/*'
+
+  # ========================================
+  # Articles Lambda Functions
+  # ========================================
+  
+  ListArticlesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-articles-cms-${Environment}
+      CodeUri: ../backend/
+      Handler: articles/list.handler
+      Description: List articles with pagination and filtering (CMS)
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  GetArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-article-cms-${Environment}
+      CodeUri: ../backend/
+      Handler: articles/get.handler
+      Description: Get a single article by ID (CMS)
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  CreateArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-article-${Environment}
+      CodeUri: ../backend/
+      Handler: articles/create.handler
+      Description: Create a new article
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  UpdateArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-article-${Environment}
+      CodeUri: ../backend/
+      Handler: articles/update.handler
+      Description: Update an existing article
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  DeleteArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-article-${Environment}
+      CodeUri: ../backend/
+      Handler: articles/delete.handler
+      Description: Delete an article (soft delete)
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  GetImageUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-image-upload-url-${Environment}
+      CodeUri: ../backend/
+      Handler: articles/getImageUploadUrl.handler
+      Description: Generate presigned URL for S3 image upload
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref MediaBucket
+
+  # ========================================
+  # Sections Lambda Functions
+  # ========================================
+  
+  ListSectionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-sections-cms-${Environment}
+      CodeUri: ../backend/
+      Handler: sections/list.handler
+      Description: List all sections (CMS)
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  CreateSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-section-${Environment}
+      CodeUri: ../backend/
+      Handler: sections/create.handler
+      Description: Create a new section
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  UpdateSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-section-${Environment}
+      CodeUri: ../backend/
+      Handler: sections/update.handler
+      Description: Update an existing section
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  DeleteSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-section-${Environment}
+      CodeUri: ../backend/
+      Handler: sections/delete.handler
+      Description: Delete a section (soft delete)
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  # ========================================
+  # Tags Lambda Functions
+  # ========================================
+  
+  ListTagsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-tags-cms-${Environment}
+      CodeUri: ../backend/
+      Handler: tags/list.handler
+      Description: List all tags (CMS)
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  CreateTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-tag-${Environment}
+      CodeUri: ../backend/
+      Handler: tags/create.handler
+      Description: Create a new tag
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  UpdateTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-tag-${Environment}
+      CodeUri: ../backend/
+      Handler: tags/update.handler
+      Description: Update an existing tag
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  DeleteTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-tag-${Environment}
+      CodeUri: ../backend/
+      Handler: tags/delete.handler
+      Description: Delete a tag
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+Outputs:
+  MediaBucketName:
+    Description: S3 bucket for media uploads
+    Value: !Ref MediaBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-MediaBucket
+
+  MediaBucketArn:
+    Description: ARN of the media bucket
+    Value: !GetAtt MediaBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-MediaBucketArn
+
+  LambdaExecutionRoleArn:
+    Description: ARN of the Lambda execution role
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-LambdaExecutionRoleArn
+  
+  # Lambda Function Names for API Gateway Integration
+  ListArticlesFunctionName:
+    Description: List Articles Function Name
+    Value: !Ref ListArticlesFunction
+  
+  GetArticleFunctionName:
+    Description: Get Article Function Name
+    Value: !Ref GetArticleFunction
+  
+  CreateArticleFunctionName:
+    Description: Create Article Function Name
+    Value: !Ref CreateArticleFunction
+  
+  UpdateArticleFunctionName:
+    Description: Update Article Function Name
+    Value: !Ref UpdateArticleFunction
+  
+  DeleteArticleFunctionName:
+    Description: Delete Article Function Name
+    Value: !Ref DeleteArticleFunction
+  
+  GetImageUploadUrlFunctionName:
+    Description: Get Image Upload URL Function Name
+    Value: !Ref GetImageUploadUrlFunction
+  
+  ListSectionsFunctionName:
+    Description: List Sections Function Name
+    Value: !Ref ListSectionsFunction
+  
+  CreateSectionFunctionName:
+    Description: Create Section Function Name
+    Value: !Ref CreateSectionFunction
+  
+  UpdateSectionFunctionName:
+    Description: Update Section Function Name
+    Value: !Ref UpdateSectionFunction
+  
+  DeleteSectionFunctionName:
+    Description: Delete Section Function Name
+    Value: !Ref DeleteSectionFunction
+  
+  ListTagsFunctionName:
+    Description: List Tags Function Name
+    Value: !Ref ListTagsFunction
+  
+  CreateTagFunctionName:
+    Description: Create Tag Function Name
+    Value: !Ref CreateTagFunction
+  
+  UpdateTagFunctionName:
+    Description: Update Tag Function Name
+    Value: !Ref UpdateTagFunction
+  
+  DeleteTagFunctionName:
+    Description: Delete Tag Function Name
+    Value: !Ref DeleteTagFunction
+

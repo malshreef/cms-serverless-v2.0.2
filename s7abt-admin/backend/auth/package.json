@@ -1,0 +1,10 @@
+{
+  "name": "s7abt-admin-auth",
+  "version": "1.0.0",
+  "description": "S7abt Admin Authentication Lambda Functions",
+  "main": "getDashboardStats.js",
+  "dependencies": {
+    "mysql2": "^3.6.0"
+  }
+}
+

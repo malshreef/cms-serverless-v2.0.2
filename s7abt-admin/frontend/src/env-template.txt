@@ -1,0 +1,10 @@
+# Copy this to your .env file
+
+VITE_API_BASE_URL=https://<your-api-id>.execute-api.me-central-1.amazonaws.com/dev
+VITE_S3_BASE_URL=https://<your-s3-bucket>.s3.me-central-1.amazonaws.com
+
+# Your existing Cognito variables (keep these as they are)
+VITE_COGNITO_USER_POOL_ID=your-existing-value
+VITE_COGNITO_CLIENT_ID=your-existing-value
+VITE_COGNITO_REGION=me-central-1
+

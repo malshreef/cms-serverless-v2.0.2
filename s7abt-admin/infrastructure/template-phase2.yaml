@@ -1,0 +1,211 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Admin Dashboard - Phase 2 (IAM & Baseline)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+
+  DatabaseSecretArn:
+    Type: String
+    Description: ARN of the database credentials secret in Secrets Manager
+
+  VpcId:
+    Type: String
+    Default: <your-vpc-id>
+    Description: VPC ID where RDS database is located
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Default: "<your-subnet-id-1>,<your-subnet-id-2>,<your-subnet-id-3>"
+    Description: Comma-delimited list of subnet IDs for Lambda functions
+
+  SecurityGroupId:
+    Type: String
+    Default: <your-security-group-id>
+    Description: Security group ID that allows access to RDS
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+
+Resources:
+  # Cognito User Pool
+  AdminUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub s7abt-admin-${Environment}
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+        - Name: name
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: role
+          AttributeDataType: String
+          Mutable: true
+      UserPoolTags:
+        Project: s7abt
+        Environment: !Ref Environment
+        Phase: "2"
+
+  # Cognito User Pool Client
+  AdminUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub s7abt-admin-client-${Environment}
+      UserPoolId: !Ref AdminUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  # Cognito User Groups
+  SuperAdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: super-admin
+      Description: Super administrators with full access
+      UserPoolId: !Ref AdminUserPool
+      Precedence: 1
+
+  ContentManagerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: content-manager
+      Description: Content managers with access to articles and CMS
+      UserPoolId: !Ref AdminUserPool
+      Precedence: 2
+
+  SocialMediaManagerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: social-media-manager
+      Description: Social media managers with access to tweet automation
+      UserPoolId: !Ref AdminUserPool
+      Precedence: 3
+
+  ViewerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: viewer
+      Description: Viewers with read-only access
+      UserPoolId: !Ref AdminUserPool
+      Precedence: 4
+
+  # API Gateway
+  AdminApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub s7abt-admin-api-${Environment}
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        AllowCredentials: false
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt AdminUserPool.Arn
+        AddDefaultAuthorizerToCorsPreflight: false
+
+  # Lambda Functions
+  GetCurrentUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-current-user-${Environment}
+      CodeUri: ../backend/
+      Handler: auth/getCurrentUser.handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DatabaseSecretArn
+      Events:
+        GetCurrentUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AdminApi
+            Path: /admin/user
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  GetDashboardStatsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-dashboard-stats-${Environment}
+      CodeUri: ../backend/
+      Handler: auth/getDashboardStats.handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DatabaseSecretArn
+      Events:
+        GetDashboardStats:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AdminApi
+            Path: /admin/dashboard/stats
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref AdminUserPool
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolId
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref AdminUserPoolClient
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolClientId
+
+  ApiEndpoint:
+    Description: Admin API Gateway endpoint
+    Value: !Sub https://${AdminApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiEndpoint
+
+  ApiId:
+    Description: Admin API Gateway ID
+    Value: !Ref AdminApi
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiId
+

@@ -1,0 +1,476 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Admin Dashboard - Phase 3 CMS with Articles CRUD
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  DatabaseSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing database credentials
+    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    Tags:
+      Project: S7abt
+      Environment: !Ref Environment
+      Phase: "3"
+
+Resources:
+  # ========================================
+  # S3 Bucket for Image Uploads
+  # ========================================
+  
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub s7abt-media-${Environment}-${AWS::AccountId}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Project
+          Value: S7abt
+        - Key: Environment
+          Value: !Ref Environment
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${MediaBucket.Arn}/*'
+
+  # ========================================
+  # Cognito User Pool (from Phase 2)
+  # ========================================
+  
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub s7abt-admin-${Environment}-userpool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: false
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub s7abt-admin-${Environment}-client
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+
+  # ========================================
+  # IAM Role for Lambda Functions
+  # ========================================
+  
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'secretsmanager:GetSecretValue'
+                Resource: !Ref DatabaseSecretArn
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
+                Resource: !Sub '${MediaBucket.Arn}/*'
+
+  # ========================================
+  # Lambda Functions - Authentication
+  # ========================================
+  
+  GetCurrentUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-current-user-${Environment}
+      CodeUri: ../backend/auth/
+      Handler: getCurrentUser.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /auth/me
+            Method: get
+
+  GetDashboardStatsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-dashboard-stats-${Environment}
+      CodeUri: ../backend/auth/
+      Handler: getDashboardStats.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/dashboard/stats
+            Method: get
+
+  GetInsightsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-insights-${Environment}
+      CodeUri: ../backend/analytics/
+      Handler: getInsights.handler
+      Description: Get analytics and insights data for dashboard
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/analytics/insights
+            Method: get
+
+  # ========================================
+  # Lambda Functions - Articles CRUD
+  # ========================================
+  
+  ListArticlesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-articles-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /articles
+            Method: get
+
+  GetArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /articles/{id}
+            Method: get
+
+  CreateArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: create.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /articles
+            Method: post
+
+  UpdateArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: update.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /articles/{id}
+            Method: put
+
+  DeleteArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: delete.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /articles/{id}
+            Method: delete
+
+  GetImageUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-image-upload-url-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: getImageUploadUrl.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref MediaBucket
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /articles/image-upload-url
+            Method: post
+
+  # ========================================
+  # Lambda Functions - Sections CRUD
+  # ========================================
+  
+  ListSectionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-sections-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sections
+            Method: get
+
+  CreateSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-section-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: create.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sections
+            Method: post
+
+  UpdateSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-section-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: update.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sections/{id}
+            Method: put
+
+  DeleteSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-section-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: delete.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /sections/{id}
+            Method: delete
+
+  # ========================================
+  # Lambda Functions - Tags CRUD
+  # ========================================
+  
+  ListTagsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-tags-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /tags
+            Method: get
+
+  CreateTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-tag-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: create.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /tags
+            Method: post
+
+  UpdateTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-tag-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: update.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /tags/{id}
+            Method: put
+
+  DeleteTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-tag-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: delete.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /tags/{id}
+            Method: delete
+
+  # ========================================
+  # API Gateway
+  # ========================================
+  
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub s7abt-admin-api-${Environment}
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiEndpoint
+  
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolId
+  
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolClientId
+  
+  MediaBucketName:
+    Description: S3 bucket for media uploads
+    Value: !Ref MediaBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-MediaBucket
+  
+  MediaBucketUrl:
+    Description: S3 bucket URL for media access
+    Value: !GetAtt MediaBucket.WebsiteURL
+    Export:
+      Name: !Sub ${AWS::StackName}-MediaBucketUrl
+

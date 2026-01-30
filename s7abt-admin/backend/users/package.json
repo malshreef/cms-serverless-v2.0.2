@@ -1,0 +1,23 @@
+{
+  "name": "s7abt-admin-users-cognito-functions",
+  "version": "2.0.0",
+  "description": "User management Lambda functions with Cognito integration for S7abt Admin",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "lambda",
+    "users",
+    "rbac",
+    "cognito",
+    "s7abt"
+  ],
+  "author": "S7abt Team",
+  "license": "MIT",
+  "dependencies": {
+    "mysql2": "^3.6.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.450.0"
+  }
+}
+

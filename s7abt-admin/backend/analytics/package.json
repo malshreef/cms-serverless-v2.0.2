@@ -1,0 +1,10 @@
+{
+  "name": "s7abt-admin-analytics",
+  "version": "1.0.0",
+  "description": "S7abt Admin Analytics Lambda Functions",
+  "main": "getInsights.js",
+  "dependencies": {
+    "mysql2": "^3.6.0",
+    "@aws-sdk/client-secrets-manager": "^3.400.0"
+  }
+}

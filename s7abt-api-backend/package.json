@@ -1,0 +1,22 @@
+{
+  "name": "s7abt-api-expanded",
+  "version": "2.0.0",
+  "description": "S7abt Complete Serverless API - Articles, News, Sections, Tags, Users",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "serverless",
+    "aws",
+    "lambda",
+    "api",
+    "s7abt"
+  ],
+  "author": "S7abt Team",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.907.0",
+    "mysql2": "^3.15.3"
+  }
+}

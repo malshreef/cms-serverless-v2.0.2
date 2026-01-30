@@ -1,0 +1,13 @@
+{
+  "name": "serverless-cms-backend",
+  "version": "1.0.0",
+  "description": "Serverless CMS Backend API - Delete Function",
+  "main": "delete.js",
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "mysql2": "^3.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

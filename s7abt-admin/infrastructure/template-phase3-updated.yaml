@@ -1,0 +1,489 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Admin Dashboard - Phase 3 CMS (Uses existing admin API)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  DatabaseSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing database credentials
+    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+  
+  ExistingApiId:
+    Type: String
+    Description: ID of the existing admin API Gateway
+    Default: <your-api-id>
+  
+  ExistingApiRootResourceId:
+    Type: String
+    Description: Root resource ID of the existing admin API Gateway
+    Default: REPLACE_WITH_ROOT_RESOURCE_ID
+
+  CognitoAuthorizerId:
+    Type: String
+    Description: ID of the Cognito authorizer in the existing API Gateway
+    Default: o4ax6x
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    Tags:
+      Project: S7abt
+      Environment: !Ref Environment
+      Phase: "3"
+
+Resources:
+  # ========================================
+  # S3 Bucket for Image Uploads
+  # ========================================
+  
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub s7abt-media-${Environment}-${AWS::AccountId}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Project
+          Value: S7abt
+        - Key: Environment
+          Value: !Ref Environment
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${MediaBucket.Arn}/*'
+
+  # ========================================
+  # IAM Role for Lambda Functions
+  # ========================================
+  
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub s7abt-admin-phase3-lambda-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: !Sub '${MediaBucket.Arn}/*'
+        - PolicyName: CognitoAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminSetUserPassword
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:AdminDeleteUser
+                  - cognito-idp:AdminEnableUser
+                  - cognito-idp:AdminDisableUser
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:ListUsers
+                Resource: 'arn:aws:cognito-idp:me-central-1:*:userpool/<your-cognito-user-pool-id>'
+
+  # ========================================
+  # Articles Lambda Functions
+  # ========================================
+  
+  ListArticlesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-articles-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: list.handler
+      Description: List articles with pagination and filtering
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/articles
+            Method: GET
+
+  GetArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: get.handler
+      Description: Get a single article by ID
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/articles/{id}
+            Method: GET
+
+  CreateArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: create.handler
+      Description: Create a new article
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/articles
+            Method: POST
+
+  UpdateArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: update.handler
+      Description: Update an existing article
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/articles/{id}
+            Method: PUT
+
+  DeleteArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-article-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: delete.handler
+      Description: Delete an article (soft delete)
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/articles/{id}
+            Method: DELETE
+
+  GetImageUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-image-upload-url-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: getImageUploadUrl.handler
+      Description: Generate presigned URL for S3 image upload
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref MediaBucket
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/articles/image-upload-url
+            Method: POST
+
+  # ========================================
+  # Sections Lambda Functions
+  # ========================================
+  
+  ListSectionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-sections-cms-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: list.handler
+      Description: List all sections
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/sections
+            Method: GET
+
+  CreateSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-section-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: create.handler
+      Description: Create a new section
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/sections
+            Method: POST
+
+  UpdateSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-section-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: update.handler
+      Description: Update an existing section
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/sections/{id}
+            Method: PUT
+
+  DeleteSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-section-${Environment}
+      CodeUri: ../backend/sections/
+      Handler: delete.handler
+      Description: Delete a section (soft delete)
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/sections/{id}
+            Method: DELETE
+
+  # ========================================
+  # Tags Lambda Functions
+  # ========================================
+  
+  ListTagsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-tags-cms-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: list.handler
+      Description: List all tags
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tags
+            Method: GET
+
+  CreateTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-tag-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: create.handler
+      Description: Create a new tag
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tags
+            Method: POST
+
+  UpdateTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-tag-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: update.handler
+      Description: Update an existing tag
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tags/{id}
+            Method: PUT
+
+  DeleteTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-tag-${Environment}
+      CodeUri: ../backend/tags/
+      Handler: delete.handler
+      Description: Delete a tag
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tags/{id}
+            Method: DELETE
+
+  # ========================================
+  # Analytics Function
+  # ========================================
+
+  GetInsightsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-insights-${Environment}
+      CodeUri: ../backend/analytics/
+      Handler: getInsights.handler
+      Description: Get analytics and insights data for dashboard
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/analytics/insights
+            Method: GET
+
+  # ========================================
+  # User Management Lambda Functions
+  # ========================================
+
+  ListUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-users-${Environment}
+      CodeUri: ../backend/users/
+      Handler: list-cognito.handler
+      Description: List users with Cognito integration
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: get-cognito.handler
+      Description: Get a single user by ID
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: create-cognito.handler
+      Description: Create a new user in Cognito and database
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: <your-cognito-user-pool-id>
+
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: update-cognito.handler
+      Description: Update user in Cognito and database
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: <your-cognito-user-pool-id>
+
+  DeleteUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: delete-cognito.handler
+      Description: Delete user from Cognito and soft delete from database
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: <your-cognito-user-pool-id>
+
+Outputs:
+  MediaBucketName:
+    Description: S3 bucket for media uploads
+    Value: !Ref MediaBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-MediaBucket
+
+  MediaBucketArn:
+    Description: ARN of the media bucket
+    Value: !GetAtt MediaBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-MediaBucketArn
+
+  ApiEndpoint:
+    Description: API Gateway endpoint URL (existing admin API)
+    Value: !Sub https://${ExistingApiId}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiEndpoint
+
+  LambdaExecutionRoleArn:
+    Description: ARN of the Lambda execution role
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-LambdaExecutionRoleArn
+

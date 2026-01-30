@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Social Media Automation System
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+  
+  TwitterSecretName:
+    Type: String
+    Default: s7abt/twitter/credentials
+    Description: Name of the secret containing Twitter API credentials
+  
+  OpenAISecretName:
+    Type: String
+    Default: s7abt/openai/credentials
+    Description: Name of the secret containing OpenAI API key
+  
+  S7abtApiUrl:
+    Type: String
+    Default: https://<your-api-id>.execute-api.me-central-1.amazonaws.com/dev
+    Description: URL of the S7abt blog API
+
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID
+    Default: <your-cognito-user-pool-id>
+
+Globals:
+  Function:
+    Timeout: 300
+    Runtime: nodejs18.x
+    MemorySize: 512
+    Environment:
+      Variables:
+        TWEET_QUEUE_TABLE: !Ref TweetQueueTable
+        TWITTER_SECRET_NAME: !Ref TwitterSecretName
+        OPENAI_SECRET_NAME: !Ref OpenAISecretName
+        S7ABT_API_URL: !Ref S7abtApiUrl
+        NODE_ENV: !Ref Environment
+
+Resources:
+  # DynamoDB Table for Tweet Queue
+  TweetQueueTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub s7abt-tweet-queue-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: tweet_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: scheduled_time
+          AttributeType: N
+        - AttributeName: article_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: tweet_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: status-scheduled_time-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: scheduled_time
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: article_id-index
+          KeySchema:
+            - AttributeName: article_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Project
+          Value: S7abt
+        - Key: Component
+          Value: SocialMedia
+
+  # Tweet Generator Lambda Function
+  TweetGeneratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-tweet-generator-${Environment}
+      CodeUri: tweet-generator/
+      Handler: handler.handler
+      Description: Generate tweets from blog articles using OpenAI GPT-4
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TweetQueueTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource:
+                - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${OpenAISecretName}*
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /generate-tweets
+            Method: post
+            RestApiId: !Ref SocialMediaApi
+      Tags:
+        Project: S7abt
+        Component: TweetGenerator
+
+  # Tweet Publisher Lambda Function
+  TweetPublisherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-tweet-publisher-${Environment}
+      CodeUri: tweet-publisher/
+      Handler: handler.handler
+      Description: Publish pending tweets to Twitter at scheduled time
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TweetQueueTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource:
+                - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${TwitterSecretName}*
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 12 * * ? *)  # 12 PM UTC = 3 PM Riyadh (AST/UTC+3)
+            Description: Post tweet daily at 3 PM Riyadh time
+            Enabled: true
+      Tags:
+        Project: S7abt
+        Component: TweetPublisher
+
+  # Users Management Function
+  UsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-users-${Environment}
+      CodeUri: users/
+      Handler: cognito.handler
+      Description: Manage users via Cognito
+      Environment:
+        Variables:
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminUpdateUserAttributes
+              Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}
+      Events:
+        ListUsers:
+          Type: Api
+          Properties:
+            Path: /admin/users
+            Method: get
+            RestApiId: !Ref SocialMediaApi
+        CreateUser:
+          Type: Api
+          Properties:
+            Path: /admin/users
+            Method: post
+            RestApiId: !Ref SocialMediaApi
+        UpdateUser:
+          Type: Api
+          Properties:
+            Path: /admin/users/{id}
+            Method: put
+            RestApiId: !Ref SocialMediaApi
+        DeleteUser:
+          Type: Api
+          Properties:
+            Path: /admin/users/{id}
+            Method: delete
+            RestApiId: !Ref SocialMediaApi
+      Tags:
+        Project: S7abt
+        Component: Users
+
+  # API Gateway
+  SocialMediaApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub s7abt-social-media-api-${Environment}
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Tags:
+        Project: S7abt
+        Component: API
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}
+
+  # CloudWatch Log Groups
+  TweetGeneratorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-tweet-generator-${Environment}
+      RetentionInDays: 14
+
+  TweetPublisherLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-tweet-publisher-${Environment}
+      RetentionInDays: 14
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${SocialMediaApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiUrl
+  
+  TweetQueueTableName:
+    Description: DynamoDB table name for tweet queue
+    Value: !Ref TweetQueueTable
+    Export:
+      Name: !Sub ${AWS::StackName}-TweetQueueTable
+  
+  TweetGeneratorFunctionArn:
+    Description: Tweet Generator Lambda Function ARN
+    Value: !GetAtt TweetGeneratorFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-TweetGeneratorArn
+  
+  TweetPublisherFunctionArn:
+    Description: Tweet Publisher Lambda Function ARN
+    Value: !GetAtt TweetPublisherFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-TweetPublisherArn
+

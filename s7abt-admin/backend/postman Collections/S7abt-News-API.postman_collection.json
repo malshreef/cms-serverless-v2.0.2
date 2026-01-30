@@ -1,0 +1,309 @@
+{
+  "info": {
+    "name": "S7abt Admin - News Management API",
+    "description": "Complete API collection for S7abt News Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "s7abt-admin"
+  },
+  "item": [
+    {
+      "name": "News Management",
+      "item": [
+        {
+          "name": "List All News",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/news?page=1&limit=20&active=1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "news"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page (default: 20)"
+                },
+                {
+                  "key": "active",
+                  "value": "1",
+                  "description": "Filter by status: 1=active, 0=inactive",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "AWS",
+                  "description": "Search in title and body",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get paginated list of news items with optional filters"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/admin/news?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "news"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"news\": [\n      {\n        \"id\": 1,\n        \"title\": \"AWS تطلق خدمة جديدة\",\n        \"brief\": \"ملخص الخبر\",\n        \"body\": \"محتوى الخبر الكامل\",\n        \"image\": \"https://s3.amazonaws.com/image.jpg\",\n        \"active\": 1,\n        \"createdAt\": \"2025-10-20T10:00:00Z\",\n        \"authorName\": \"محمد أحمد\"\n      }\n    ],\n    \"pagination\": {\n      \"page\": 1,\n      \"limit\": 20,\n      \"total\": 50,\n      \"totalPages\": 3\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get News by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/news/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "news", "1"]
+            },
+            "description": "Get a single news item by ID"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/admin/news/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "news", "1"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"AWS تطلق خدمة جديدة\",\n    \"brief\": \"ملخص الخبر\",\n    \"body\": \"محتوى الخبر الكامل\",\n    \"image\": \"https://s3.amazonaws.com/image.jpg\",\n    \"logo\": \"flaticon-cloud\",\n    \"active\": 1,\n    \"showWidth\": 6,\n    \"userId\": 1,\n    \"createdAt\": \"2025-10-20T10:00:00Z\",\n    \"authorName\": \"محمد أحمد\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create News",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"AWS تطلق خدمة Lambda الجديدة\",\n  \"brief\": \"أطلقت أمازون ويب سيرفيسز خدمة Lambda المحسنة مع دعم أفضل للحاويات\",\n  \"body\": \"في خطوة مهمة لتطوير الحوسبة السحابية، أعلنت AWS عن إطلاق نسخة محسنة من خدمة Lambda...\",\n  \"image\": \"https://s3.amazonaws.com/news/aws-lambda.jpg\",\n  \"logo\": \"flaticon-cloud\",\n  \"active\": 1,\n  \"showWidth\": 6,\n  \"userId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/news",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "news"]
+            },
+            "description": "Create a new news item"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{base_url}}/admin/news",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "news"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"News created successfully\",\n  \"data\": {\n    \"id\": 42,\n    \"title\": \"AWS تطلق خدمة Lambda الجديدة\",\n    \"brief\": \"أطلقت أمازون ويب سيرفيسز خدمة Lambda المحسنة\",\n    \"createdAt\": \"2025-10-21T14:30:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update News",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"AWS تطلق خدمة Lambda المحدثة\",\n  \"brief\": \"ملخص محدث للخبر\",\n  \"body\": \"محتوى محدث للخبر...\",\n  \"image\": \"https://s3.amazonaws.com/news/aws-lambda-updated.jpg\",\n  \"active\": 1,\n  \"showWidth\": 12\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/news/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "news", "1"]
+            },
+            "description": "Update an existing news item"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "PUT",
+                "url": {
+                  "raw": "{{base_url}}/admin/news/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "news", "1"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"News updated successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"AWS تطلق خدمة Lambda المحدثة\",\n    \"updatedAt\": \"2025-10-21T15:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete News",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/news/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "news", "1"]
+            },
+            "description": "Soft delete a news item (sets deleted_at timestamp)"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{base_url}}/admin/news/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "news", "1"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"News deleted successfully\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "CRUD operations for News Management"
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/stats",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "dashboard", "stats"]
+            },
+            "description": "Get dashboard statistics including article count, news count, user count, and recent articles"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"totalArticles\": 68,\n    \"totalNews\": 9,\n    \"totalUsers\": 5,\n    \"recentArticles\": [\n      {\n        \"id\": 1,\n        \"title\": \"مقال مهم الشركات الناشئة\",\n        \"status\": \"published\",\n        \"image\": \"https://s3.amazonaws.com/image.jpg\",\n        \"createdAt\": \"2025-10-19T14:00:00Z\",\n        \"sectionName\": \"الأمن السيبراني المتقدم\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://<your-api-id>.execute-api.me-central-1.amazonaws.com/dev",
+      "type": "string"
+    }
+  ]
+}
+

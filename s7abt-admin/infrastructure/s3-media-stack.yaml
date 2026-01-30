@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'S3 Media Storage and Upload Infrastructure for S7abt Admin'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+
+Resources:
+  # S3 Bucket for Media Storage
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 's7abt-media-${Environment}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+              - HEAD
+            AllowedOrigins:
+              - '*'
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldTempFiles
+            Status: Enabled
+            Prefix: temp/
+            ExpirationInDays: 1
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: S7abt-Admin
+
+  # Bucket Policy for Public Read Access
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:GetObject
+            Resource: !Sub '${MediaBucket.Arn}/*'
+
+  # Lambda Execution Role
+  PresignedUrlLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 's7abt-presigned-url-lambda-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3PresignedUrlPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetObject
+                Resource: !Sub '${MediaBucket.Arn}/*'
+
+  # Lambda Function for Presigned URLs
+  PresignedUrlFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 's7abt-presigned-url-${Environment}'
+      Runtime: nodejs20.x
+      Handler: presigned-url.handler
+      Role: !GetAtt PresignedUrlLambdaRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            return {
+              statusCode: 200,
+              body: JSON.stringify({ message: 'Placeholder - deploy actual code' })
+            };
+          };
+      Environment:
+        Variables:
+          MEDIA_BUCKET_NAME: !Ref MediaBucket
+          AWS_REGION: !Ref AWS::Region
+      Timeout: 30
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: S7abt-Admin
+
+  # API Gateway Integration
+  PresignedUrlApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PresignedUrlFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/POST/admin/media/presigned-url'
+
+Outputs:
+  MediaBucketName:
+    Description: Name of the S3 media bucket
+    Value: !Ref MediaBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-MediaBucket'
+
+  MediaBucketArn:
+    Description: ARN of the S3 media bucket
+    Value: !GetAtt MediaBucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-MediaBucketArn'
+
+  MediaBucketUrl:
+    Description: Base URL for media bucket
+    Value: !Sub 'https://${MediaBucket}.s3.${AWS::Region}.amazonaws.com'
+    Export:
+      Name: !Sub '${AWS::StackName}-MediaBucketUrl'
+
+  PresignedUrlFunctionArn:
+    Description: ARN of the presigned URL Lambda function
+    Value: !GetAtt PresignedUrlFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-PresignedUrlFunctionArn'
+
+  PresignedUrlFunctionName:
+    Description: Name of the presigned URL Lambda function
+    Value: !Ref PresignedUrlFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-PresignedUrlFunctionName'
+

@@ -1,0 +1,147 @@
+{
+  "nav": {
+    "home": "Home",
+    "articles": "Articles",
+    "sections": "Sections",
+    "news": "News",
+    "vision2030": "Vision 2030",
+    "tags": "Tags",
+    "saudiCloud": "Saudi Cloud",
+    "about": "About",
+    "contact": "Contact",
+    "subscribe": "Subscribe"
+  },
+  "hero": {
+    "title": "Discover All Our Content",
+    "subtitle": "Explore our comprehensive collection of articles, resources, and insights designed to inspire and inform your journey.",
+    "startExploring": "Start Exploring",
+    "learnMore": "Learn More"
+  },
+  "search": {
+    "placeholder": "Search articles, resources, topics...",
+    "all": "All",
+    "articles": "Articles",
+    "news": "News",
+    "sections": "Sections",
+    "tags": "Tags"
+  },
+  "featured": {
+    "title": "Featured Content",
+    "subtitle": "Discover our most popular and trending articles handpicked for you"
+  },
+  "allContent": {
+    "title": "All Content",
+    "subtitle": "Browse through all our published articles and resources",
+    "loadMore": "Load More Articles",
+    "readTime": "min read"
+  },
+  "categories": {
+    "title": "Explore by Category",
+    "subtitle": "Dive deeper into topics that interest you the most",
+    "articles": "Articles"
+  },
+  "topics": {
+    "title": "Popular Topics",
+    "subtitle": "Explore the most popular topics and categories on our site"
+  },
+  "vision": {
+    "title": "Cloud Services & Vision 2030",
+    "subtitle": "The importance of cloud services in Saudi Arabia's Vision 2030 and the plan of the Communications and Information Technology Commission",
+    "learnMore": "Learn More",
+    "vision2030": "Vision",
+    "kingdom": "Kingdom of Saudi Arabia",
+    "discover": "Discover how cloud services contribute to achieving Vision 2030",
+    "readMore": "Read More"
+  },
+  "contributors": {
+    "title": "Meet Our Contributors",
+    "subtitle": "The amazing people behind our amazing content"
+  },
+  "newsletter": {
+    "title": "Stay Inspired",
+    "subtitle": "Get our latest articles delivered directly to your inbox. Join thousands of readers for a regular dose of inspiration.",
+    "emailPlaceholder": "Enter your email address",
+    "subscribe": "Subscribe Now",
+    "privacy": "No spam, unsubscribe any time. We respect your privacy."
+  },
+  "community": {
+    "title": "Join Our Community",
+    "subtitle": "Connect with like-minded individuals to share and grow",
+    "forums": "Discussion Forums",
+    "forumsDesc": "Join conversations with our community",
+    "events": "Live Events",
+    "eventsDesc": "Attend webinars and workshops",
+    "library": "Resource Library",
+    "libraryDesc": "Access exclusive guides and tools"
+  },
+  "footer": {
+    "tagline": "Inspiring content for curious minds",
+    "content": "Content",
+    "allArticles": "All Articles",
+    "categories": "Categories",
+    "contributors": "Contributors",
+    "featured": "Featured",
+    "community": "Community",
+    "forums": "Forums",
+    "events": "Events",
+    "newsletter": "Newsletter",
+    "resources": "Resources",
+    "support": "Support",
+    "helpCenter": "Help Center",
+    "documentation": "Documentation",
+    "contact": "Contact Us",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "rights": "All rights reserved.",
+    "tags": "Tags",
+    "vision2030": "Vision 2030"
+  },
+  "contactPage": {
+    "hero": {
+      "badge": "Contact Us",
+      "title": "Get in touch with our team",
+      "subtitle": "We have the team and know-how to help you scale 10x faster."
+    },
+    "info": {
+      "email": {
+        "title": "Chat to sales",
+        "description": "Speak to our friendly team.",
+        "action": "sales@s7abt.com"
+      },
+      "phone": {
+        "title": "Call us",
+        "description": "Mon-Fri from 8am to 5pm.",
+        "action": "+1 (555) 000-0000"
+      },
+      "office": {
+        "title": "Visit us",
+        "description": "Visit our office HQ.",
+        "action": "View on Google Maps"
+      }
+    },
+    "form": {
+      "title": "Send us a message",
+      "subtitle": "Our team is highly dedicated to help you with your queries.",
+      "name": "Full Name",
+      "namePlaceholder": "Enter your full name",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "subject": "Subject",
+      "subjectPlaceholder": "Enter subject",
+      "message": "Message",
+      "messagePlaceholder": "Type your message here...",
+      "submit": "Send Message",
+      "successMessage": "Message sent successfully!"
+    },
+    "faq": {
+      "title": "About S7abt Cloud",
+      "subtitle": "Learn more about our mission and vision.",
+      "q1": "The Idea",
+      "a1": "S7abt Cloud is a Saudi website specialized in cloud services. Through it, we try to enrich the Arabic content in the field of cloud services.",
+      "q2": "The Need for a Specialized Site",
+      "a2": "After a group of colleagues decided to enter the field of cloud services and obtain specialized certificates in it, we started the research process and the most important point was: which certificates are most suitable? Should we specialize in Amazon, Azure from Microsoft, or Google Cloud? Of course, sources in English were many and rich. But the most important point remains: what is required in the Saudi market? What is the actual need for cloud specialization in the Saudi market? No matter how abundant and rich the specialized content in English is, there is no substitute for specialized Saudi content that is linked to the Saudi market, the need in it, and the size of cloud services in the Saudi market. Therefore, we decided that after we pass the exam and obtain specialized certificates in the cloud, we will share the information we collected through this site and provide more information that helps us in permanent research and continuous updating and enriching Arabic content.",
+      "q3": "Share the Interest",
+      "a3": "If you are interested in the field of cloud services or specialize in it and would like to join us, we are honored to have you. Please contact us. We are currently working on forming a working group for cloud services specialists so that we can share information and keep abreast of the most important developments in this field."
+    }
+  }
+}

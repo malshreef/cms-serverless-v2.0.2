@@ -1,0 +1,18 @@
+{
+  "name": "s7abt-admin-tweets",
+  "version": "1.0.0",
+  "description": "Tweet automation Lambda functions for S7abt Admin",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@aws-sdk/client-secrets-manager": "^3.716.0",
+    "mysql2": "^3.6.0",
+    "twitter-api-v2": "^1.17.2",
+    "uuid": "^9.0.0"
+  },
+  "author": "S7abt Team",
+  "license": "ISC"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "s7abt-tweet-generator",
+  "version": "1.0.0",
+  "description": "Generate tweets from blog articles using OpenAI GPT-4",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "twitter",
+    "openai",
+    "aws",
+    "lambda"
+  ],
+  "author": "S7abt",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "openai": "^4.0.0",
+    "uuid": "^9.0.0"
+  }
+}
+

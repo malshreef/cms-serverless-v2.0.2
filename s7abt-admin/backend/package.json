@@ -1,0 +1,13 @@
+{
+  "name": "s7abt-media-functions",
+  "version": "1.0.0",
+  "description": "Media processing Lambda functions for S7abt admin",
+  "main": "generateThumbnail.js",
+  "dependencies": {
+    "aws-sdk": "^2.1691.0",
+    "sharp": "^0.33.0",
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0"
+  }
+}
+

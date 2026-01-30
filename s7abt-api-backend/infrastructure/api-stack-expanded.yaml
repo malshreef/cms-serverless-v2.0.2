@@ -1,0 +1,426 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Complete Serverless API - Articles, News, Sections, Tags, Users
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - production
+    Description: Environment name
+  
+  DBSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing database credentials
+  
+  VpcId:
+    Type: String
+    Description: VPC ID where RDS is located
+  
+  SubnetIds:
+    Type: CommaDelimitedList
+    Description: Comma-separated list of subnet IDs for Lambda functions
+  
+  RDSSecurityGroupId:
+    Type: String
+    Description: Security group ID of the RDS instance
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        DB_SECRET_ARN: !Ref DBSecretArn
+        NODE_ENV: !Ref Environment
+    Tags:
+      projectName: s7abt
+      Environment: !Ref Environment
+      ManagedBy: CloudFormation
+  
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
+
+Resources:
+  # ==================== IAM Role ====================
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub s7abt-lambda-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DBSecretArn
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+      Tags:
+        - Key: projectName
+          Value: s7abt
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ==================== Security Group ====================
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub s7abt-lambda-sg-${Environment}
+      GroupDescription: Security group for S7abt Lambda functions
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub s7abt-lambda-sg-${Environment}
+        - Key: projectName
+          Value: s7abt
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ==================== RDS Ingress Rule ====================
+  RDSIngressFromLambda:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref RDSSecurityGroupId
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      Description: Allow Lambda functions to access RDS
+
+  # ==================== API Gateway ====================
+  S7abtApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub s7abt-api-${Environment}
+      StageName: !Ref Environment
+      Tags:
+        projectName: s7abt
+        Environment: !Ref Environment
+        ManagedBy: CloudFormation
+
+  # ==================== ARTICLES FUNCTIONS ====================
+  ListArticlesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-list-articles-${Environment}
+      CodeUri: .
+      Handler: articles/list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        ListArticles:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /articles
+            Method: GET
+
+  GetArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-get-article-${Environment}
+      CodeUri: .
+      Handler: articles/get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        GetArticle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /articles/{id}
+            Method: GET
+
+  ShareArticleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-share-article-${Environment}
+      CodeUri: .
+      Handler: articles/share.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        ShareArticle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /articles/{id}/share
+            Method: POST
+
+  # ==================== NEWS FUNCTIONS ====================
+  ListNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-list-news-${Environment}
+      CodeUri: .
+      Handler: news/list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        ListNews:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /news
+            Method: GET
+
+  GetNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-get-news-${Environment}
+      CodeUri: .
+      Handler: news/get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        GetNews:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /news/{id}
+            Method: GET
+
+  # ==================== SECTIONS FUNCTIONS ====================
+  ListSectionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-list-sections-${Environment}
+      CodeUri: .
+      Handler: sections/list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        ListSections:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /sections
+            Method: GET
+
+  GetSectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-get-section-${Environment}
+      CodeUri: .
+      Handler: sections/get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        GetSection:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /sections/{id}
+            Method: GET
+
+  # ==================== TAGS FUNCTIONS ====================
+  ListTagsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-list-tags-${Environment}
+      CodeUri: .
+      Handler: tags/list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        ListTags:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /tags
+            Method: GET
+
+  GetTagFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-get-tag-${Environment}
+      CodeUri: .
+      Handler: tags/get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        GetTag:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /tags/{id}
+            Method: GET
+
+  # ==================== USERS FUNCTIONS ====================
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-get-user-${Environment}
+      CodeUri: .
+      Handler: users/get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        GetUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /users/{id}
+            Method: GET
+
+  GetUserArticlesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-get-user-articles-${Environment}
+      CodeUri: .
+      Handler: users/articles.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        GetUserArticles:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /users/{id}/articles
+            Method: GET
+
+  # ==================== CLOUDWATCH LOG GROUPS ====================
+  ListArticlesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-list-articles-${Environment}
+      RetentionInDays: 7
+
+  GetArticleLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-get-article-${Environment}
+      RetentionInDays: 7
+
+  ListNewsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-list-news-${Environment}
+      RetentionInDays: 7
+
+  GetNewsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-get-news-${Environment}
+      RetentionInDays: 7
+
+  ListSectionsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-list-sections-${Environment}
+      RetentionInDays: 7
+
+  GetSectionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-get-section-${Environment}
+      RetentionInDays: 7
+
+  ListTagsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-list-tags-${Environment}
+      RetentionInDays: 7
+
+  GetTagLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-get-tag-${Environment}
+      RetentionInDays: 7
+
+  GetUserLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-get-user-${Environment}
+      RetentionInDays: 7
+
+  GetUserArticlesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-get-user-articles-${Environment}
+      RetentionInDays: 7
+
+# ==================== OUTPUTS ====================
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${S7abtApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiUrl
+  
+  LambdaSecurityGroupId:
+    Description: Security Group ID for Lambda functions
+    Value: !Ref LambdaSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-LambdaSecurityGroupId
+  
+  LambdaExecutionRoleArn:
+    Description: IAM Role ARN for Lambda functions
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-LambdaExecutionRoleArn
+

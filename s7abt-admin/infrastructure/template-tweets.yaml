@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Admin Dashboard - Tweet Automation System
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+
+  DatabaseSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing database credentials
+    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+
+  TwitterSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing Twitter API credentials
+    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/twitter/credentials-XXXXXX
+
+  ExistingApiId:
+    Type: String
+    Description: ID of the existing admin API Gateway
+    Default: <your-api-id>
+
+  LambdaExecutionRoleArn:
+    Type: String
+    Description: ARN of the Lambda execution role from Phase 3
+    Default: REPLACE_WITH_LAMBDA_ROLE_ARN
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 60  # Longer timeout for AI generation and Twitter API calls
+    MemorySize: 512  # More memory for Bedrock API calls
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        TWITTER_SECRET_NAME: !Ref TwitterSecretArn
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    Tags:
+      Project: S7abt
+      Environment: !Ref Environment
+      Feature: TweetAutomation
+
+Resources:
+  # ========================================
+  # Tweet Generation Lambda Function
+  # Uses AWS Bedrock (Claude 3.5) for AI generation
+  # ========================================
+
+  GenerateTweetsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-generate-tweets-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: generate.handler
+      Description: Generate tweets from article using AI (Bedrock Claude)
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 90  # AI generation can take time
+      MemorySize: 1024
+      Environment:
+        Variables:
+          AWS_REGION: !Ref AWS::Region
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0'
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref DatabaseSecretArn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tweets/generate
+            Method: POST
+
+  # ========================================
+  # Tweet CRUD Operations
+  # ========================================
+
+  ListTweetsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-tweets-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: list.handler
+      Description: List all tweets with filtering
+      Role: !Ref LambdaExecutionRoleArn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tweets
+            Method: GET
+
+  GetTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-tweet-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: get.handler
+      Description: Get a single tweet by ID
+      Role: !Ref LambdaExecutionRoleArn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tweets/{id}
+            Method: GET
+
+  UpdateTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-tweet-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: update.handler
+      Description: Update a tweet
+      Role: !Ref LambdaExecutionRoleArn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tweets/{id}
+            Method: PUT
+
+  DeleteTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-tweet-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: delete.handler
+      Description: Delete a tweet (soft delete)
+      Role: !Ref LambdaExecutionRoleArn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tweets/{id}
+            Method: DELETE
+
+  # ========================================
+  # Tweet Publishing to Twitter/X
+  # ========================================
+
+  PublishTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-publish-tweet-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: publish.handler
+      Description: Publish a tweet to Twitter/X
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource:
+                - !Ref DatabaseSecretArn
+                - !Ref TwitterSecretArn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExistingApiId
+            Path: /admin/tweets/{id}/publish
+            Method: POST
+
+  # ========================================
+  # EventBridge Rule for Scheduled Tweet Publishing
+  # Triggers daily at 3:00 PM Riyadh time (12:00 UTC)
+  # ========================================
+
+  ScheduledTweetPublisherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-scheduled-tweet-publisher-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: scheduler.handler
+      Description: Automatically publish scheduled tweets
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 300  # 5 minutes for batch processing
+      MemorySize: 512
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource:
+                - !Ref DatabaseSecretArn
+                - !Ref TwitterSecretArn
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: 'cron(0 12 * * ? *)'  # 12:00 UTC = 3:00 PM Riyadh
+            Description: Publish pending tweets daily at 3:00 PM Riyadh time
+            Enabled: true
+
+Outputs:
+  GenerateTweetsFunctionArn:
+    Description: ARN of the Generate Tweets Lambda function
+    Value: !GetAtt GenerateTweetsFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-GenerateTweetsFunction
+
+  PublishTweetFunctionArn:
+    Description: ARN of the Publish Tweet Lambda function
+    Value: !GetAtt PublishTweetFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-PublishTweetFunction
+
+  ScheduledPublisherArn:
+    Description: ARN of the Scheduled Tweet Publisher function
+    Value: !GetAtt ScheduledTweetPublisherFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-ScheduledPublisher
+
+  ApiEndpoint:
+    Description: API Gateway endpoint URL for tweets
+    Value: !Sub https://${ExistingApiId}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/admin/tweets
+    Export:
+      Name: !Sub ${AWS::StackName}-TweetsApiEndpoint

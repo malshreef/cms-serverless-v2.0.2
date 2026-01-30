@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables - NEVER commit these
+.env
+.env.*
+*.env
+!.env.example
+
+# Build outputs
+dist/
+build/
+.aws-sam/
+
+# SAM config (may contain account-specific settings)
+samconfig.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/

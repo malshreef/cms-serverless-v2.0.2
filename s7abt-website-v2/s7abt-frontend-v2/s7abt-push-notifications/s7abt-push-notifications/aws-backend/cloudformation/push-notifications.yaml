@@ -1,0 +1,379 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Push Notifications Infrastructure for S7abt Admin'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  VapidPublicKey:
+    Type: String
+    NoEcho: true
+    Description: VAPID public key for push notifications
+  
+  VapidPrivateKey:
+    Type: String
+    NoEcho: true
+    Description: VAPID private key for push notifications
+  
+  VapidSubject:
+    Type: String
+    Default: mailto:admin@s7abt.com
+    Description: VAPID subject (email or URL)
+  
+  FrontendUrl:
+    Type: String
+    Default: https://admin.s7abt.com
+    Description: Frontend URL for notification links
+  
+  CognitoUserPoolArn:
+    Type: String
+    Description: ARN of the Cognito User Pool for authentication
+
+Resources:
+  # DynamoDB Tables
+  SubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${Environment}-push-subscriptions'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: subscriptionId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: endpoint
+          AttributeType: S
+      KeySchema:
+        - AttributeName: subscriptionId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          Keys:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: endpoint-index
+          Keys:
+            - AttributeName: endpoint
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: push-notifications
+
+  UserPreferencesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${Environment}-notification-preferences'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: push-notifications
+
+  # SNS Topic for notifications
+  NotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${Environment}-content-notifications'
+      DisplayName: S7abt Content Notifications
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role for Lambda Functions
+  NotificationLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${Environment}-notification-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt SubscriptionsTable.Arn
+                  - !Sub '${SubscriptionsTable.Arn}/index/*'
+                  - !GetAtt UserPreferencesTable.Arn
+        - PolicyName: SNSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Subscribe
+                  - sns:Unsubscribe
+                  - sns:Publish
+                Resource: !Ref NotificationsTopic
+        - PolicyName: LambdaInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Environment}-*'
+
+  # Lambda Layer for web-push dependency
+  WebPushLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub '${Environment}-web-push-layer'
+      Description: web-push npm package for push notifications
+      Content:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: layers/web-push-layer.zip
+      CompatibleRuntimes:
+        - nodejs18.x
+        - nodejs20.x
+
+  # Lambda Functions
+  SubscribeNotificationsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-subscribe-notifications'
+      Runtime: nodejs20.x
+      Handler: subscribeNotifications.handler
+      Role: !GetAtt NotificationLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: lambda/subscribeNotifications.zip
+      Environment:
+        Variables:
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+          SNS_TOPIC_ARN: !Ref NotificationsTopic
+      Timeout: 30
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  UnsubscribeNotificationsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-unsubscribe-notifications'
+      Runtime: nodejs20.x
+      Handler: unsubscribeNotifications.handler
+      Role: !GetAtt NotificationLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: lambda/unsubscribeNotifications.zip
+      Environment:
+        Variables:
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+      Timeout: 30
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  NotificationPreferencesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-notification-preferences'
+      Runtime: nodejs20.x
+      Handler: notificationPreferences.handler
+      Role: !GetAtt NotificationLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: lambda/notificationPreferences.zip
+      Environment:
+        Variables:
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+          USER_PREFERENCES_TABLE: !Ref UserPreferencesTable
+      Timeout: 30
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  SendPushNotificationsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-send-push-notifications'
+      Runtime: nodejs20.x
+      Handler: sendPushNotifications.handler
+      Role: !GetAtt NotificationLambdaRole.Arn
+      Layers:
+        - !Ref WebPushLayer
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: lambda/sendPushNotifications.zip
+      Environment:
+        Variables:
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+          USER_PREFERENCES_TABLE: !Ref UserPreferencesTable
+          VAPID_PUBLIC_KEY: !Ref VapidPublicKey
+          VAPID_PRIVATE_KEY: !Ref VapidPrivateKey
+          VAPID_SUBJECT: !Ref VapidSubject
+      Timeout: 300
+      MemorySize: 512
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  TestNotificationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-test-notification'
+      Runtime: nodejs20.x
+      Handler: testNotification.handler
+      Role: !GetAtt NotificationLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: lambda/testNotification.zip
+      Environment:
+        Variables:
+          SEND_NOTIFICATION_FUNCTION: !Ref SendPushNotificationsFunction
+      Timeout: 30
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  ContentCreationTriggerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-content-creation-trigger'
+      Runtime: nodejs20.x
+      Handler: contentCreationTrigger.handler
+      Role: !GetAtt NotificationLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: lambda/contentCreationTrigger.zip
+      Environment:
+        Variables:
+          SEND_NOTIFICATION_FUNCTION: !Ref SendPushNotificationsFunction
+          FRONTEND_URL: !Ref FrontendUrl
+      Timeout: 60
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # API Gateway Integration
+  NotificationsApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${Environment}-notifications-api'
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - '*'
+
+  NotificationsAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      Name: CognitoAuthorizer
+      ApiId: !Ref NotificationsApi
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+          - !Ref CognitoUserPoolArn
+        Issuer: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolArn}'
+
+  # API Routes and Integrations
+  SubscribeIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref NotificationsApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt SubscribeNotificationsFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  SubscribeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref NotificationsApi
+      RouteKey: 'POST /admin/notifications/subscribe'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref NotificationsAuthorizer
+      Target: !Sub 'integrations/${SubscribeIntegration}'
+
+  # S3 Bucket for deployment artifacts
+  DeploymentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${Environment}-notification-deployments'
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  SubscriptionsTableName:
+    Value: !Ref SubscriptionsTable
+    Description: DynamoDB table for push subscriptions
+    Export:
+      Name: !Sub '${Environment}-subscriptions-table'
+
+  UserPreferencesTableName:
+    Value: !Ref UserPreferencesTable
+    Description: DynamoDB table for user notification preferences
+    Export:
+      Name: !Sub '${Environment}-preferences-table'
+
+  NotificationsTopicArn:
+    Value: !Ref NotificationsTopic
+    Description: SNS topic ARN for content notifications
+    Export:
+      Name: !Sub '${Environment}-notifications-topic'
+
+  ApiEndpoint:
+    Value: !GetAtt NotificationsApi.ApiEndpoint
+    Description: API Gateway endpoint for notifications
+    Export:
+      Name: !Sub '${Environment}-notifications-api-endpoint'
+
+  SendNotificationFunctionArn:
+    Value: !GetAtt SendPushNotificationsFunction.Arn
+    Description: ARN of the send notification function
+    Export:
+      Name: !Sub '${Environment}-send-notification-function'

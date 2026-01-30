@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: S7abt Admin - User Management Lambda Functions Only
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+  DatabaseSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret containing database credentials
+    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+
+Resources:
+  # IAM Role for Lambda Functions
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub s7abt-admin-users-lambda-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+        - PolicyName: CognitoAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminSetUserPassword
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:AdminDeleteUser
+                  - cognito-idp:AdminEnableUser
+                  - cognito-idp:AdminDisableUser
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:ListUsers
+                Resource: 'arn:aws:cognito-idp:me-central-1:*:userpool/<your-cognito-user-pool-id>'
+
+  # User Management Lambda Functions
+  ListUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-users-${Environment}
+      CodeUri: ../backend/users/
+      Handler: list-cognito.handler
+      Description: List users with Cognito integration
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: get-cognito.handler
+      Description: Get a single user by ID
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: create-cognito.handler
+      Description: Create a new user in Cognito and database
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: <your-cognito-user-pool-id>
+
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: update-cognito.handler
+      Description: Update user in Cognito and database
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: <your-cognito-user-pool-id>
+
+  DeleteUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: delete-cognito.handler
+      Description: Delete user from Cognito and soft delete from database
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: <your-cognito-user-pool-id>
+
+Outputs:
+  LambdaExecutionRoleArn:
+    Description: ARN of the Lambda execution role
+    Value: !GetAtt LambdaExecutionRole.Arn

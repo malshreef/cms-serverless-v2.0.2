@@ -1,0 +1,11 @@
+=======================================
+
+Public Key:
+BAbPIcJ_jvZJgNUrsQgX5ehAln3Z-7x8zdXOU5dVqCGHQq7dKOWWquXiAmAv7w3ZHxGimYHQlt61g72PrTBhprA
+
+Private Key:
+Q6nvoeISII747m8B6c20FIRNp5RitAErjZQ6SsOAvnk
+
+=======================================
+
+VITE_VAPID_PUBLIC_KEY=BAbPIcJ_jvZJgNUrsQgX5ehAln3Z-7x8zdXOU5dVqCGHQq7dKOWWquXiAmAv7w3ZHxGimYHQlt61g72PrTBhprA

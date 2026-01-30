@@ -1,0 +1,43 @@
+{
+  "resource": "/tags/{id}",
+  "path": "/tags/8",
+  "httpMethod": "GET",
+  "headers": {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "Host": "<your-api-id>.execute-api.me-central-1.amazonaws.com",
+    "User-Agent": "Mozilla/5.0"
+  },
+  "multiValueHeaders": {
+    "Accept": ["application/json"],
+    "Content-Type": ["application/json"]
+  },
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": {
+    "id": "8"
+  },
+  "stageVariables": null,
+  "requestContext": {
+    "resourceId": "abc123",
+    "resourcePath": "/tags/{id}",
+    "httpMethod": "GET",
+    "extendedRequestId": "test-request-id",
+    "requestTime": "28/Oct/2025:11:00:00 +0000",
+    "path": "/Stage/tags/8",
+    "accountId": "<your-aws-account-id>",
+    "protocol": "HTTP/1.1",
+    "stage": "Stage",
+    "domainPrefix": "<your-api-id>",
+    "requestTimeEpoch": 1730113200000,
+    "requestId": "test-request-id-123",
+    "identity": {
+      "sourceIp": "1.2.3.4",
+      "userAgent": "Mozilla/5.0"
+    },
+    "domainName": "<your-api-id>.execute-api.me-central-1.amazonaws.com",
+    "apiId": "<your-api-id>"
+  },
+  "body": null,
+  "isBase64Encoded": false
+}
