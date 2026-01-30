@@ -86,7 +86,7 @@ The backend infrastructure includes the API, Lambda functions, and the RDS MySQL
 
 **Public API & Database:**
 ```bash
-cd s7abt-api-backend/infrastructure
+cd s7abt-api-backend
 sam build -t api-stack-expanded.yaml
 sam deploy --guided
 ```
