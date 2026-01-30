@@ -80,12 +80,23 @@ s7abt-dubai/
 git clone https://github.com/malshreef/cms-serverless-v2.0.2.git
 ```
 
-### 2. Set Up the Database
+### 2. Deploy Backend & Database
 
-Create a MySQL database and run the schema migrations:
+The backend infrastructure includes the API, Lambda functions, and the RDS MySQL database.
 
-```sql
-CREATE DATABASE s7abt_dubai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+**Public API & Database:**
+```bash
+cd s7abt-api-backend/infrastructure
+sam build -t api-stack-expanded.yaml
+sam deploy --guided
+```
+Follow the prompts. SAM will create the database, secrets, and API resources.
+
+**Admin API:**
+```bash
+cd ../../s7abt-admin/infrastructure
+sam build -t template-phase3.yaml
+sam deploy --guided
 ```
 
 ### 3. Configure Environment Variables
@@ -105,21 +116,9 @@ VITE_API_ENDPOINT=https://<your-api-id>.execute-api.<region>.amazonaws.com/dev
 VITE_S3_BASE_URL=https://<your-s3-bucket>.s3.<region>.amazonaws.com
 ```
 
-### 4. Deploy Backend APIs
+### 4. Run Frontend Locally
 
-```bash
-# Public API
-cd s7abt-api-backend
-npm install
-sam build && sam deploy --guided
 
-# Admin API
-cd ../s7abt-admin/infrastructure
-sam build -t template-phase3.yaml
-sam deploy --guided
-```
-
-### 5. Run Frontend Locally
 
 **Public Website:**
 ```bash

@@ -12,21 +12,13 @@ Parameters:
       - production
     Description: Environment name
   
-  DBSecretArn:
-    Type: String
-    Description: ARN of the Secrets Manager secret containing database credentials
-  
   VpcId:
     Type: String
     Description: VPC ID where RDS is located
   
   SubnetIds:
     Type: CommaDelimitedList
-    Description: Comma-separated list of subnet IDs for Lambda functions
-  
-  RDSSecurityGroupId:
-    Type: String
-    Description: Security group ID of the RDS instance
+    Description: Comma-separated list of subnet IDs for Lambda functions and RDS
 
 Globals:
   Function:
@@ -35,7 +27,7 @@ Globals:
     MemorySize: 512
     Environment:
       Variables:
-        DB_SECRET_ARN: !Ref DBSecretArn
+        DB_SECRET_ARN: !Ref DatabaseSecret
         NODE_ENV: !Ref Environment
     Tags:
       projectName: s7abt
@@ -71,7 +63,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Ref DBSecretArn
+                Resource: !Ref DatabaseSecret
         - PolicyName: CloudWatchLogs
           PolicyDocument:
             Version: '2012-10-17'
@@ -107,16 +99,70 @@ Resources:
         - Key: ManagedBy
           Value: CloudFormation
 
-  # ==================== RDS Ingress Rule ====================
-  RDSIngressFromLambda:
-    Type: AWS::EC2::SecurityGroupIngress
+  # ==================== Database ====================
+  DatabaseSecret:
+    Type: AWS::SecretsManager::Secret
     Properties:
-      GroupId: !Ref RDSSecurityGroupId
-      IpProtocol: tcp
-      FromPort: 3306
-      ToPort: 3306
-      SourceSecurityGroupId: !Ref LambdaSecurityGroup
-      Description: Allow Lambda functions to access RDS
+      Name: !Sub s7abt/database/credentials-${Environment}
+      Description: !Sub Database credentials for ${Environment}
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: "\"/@"
+      Tags:
+        - Key: projectName
+          Value: s7abt
+        - Key: Environment
+          Value: !Ref Environment
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS instance
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          Description: Allow Lambda access
+      Tags:
+        - Key: Name
+          Value: !Sub s7abt-rds-sg-${Environment}
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub Subnet group for ${Environment}
+      SubnetIds: !Ref SubnetIds
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: mysql
+      EngineVersion: "8.0"
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      DBName: s7abt_dubai
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      MasterUsername: 
+        !Join [ "", [ "{{resolve:secretsmanager:", !Ref DatabaseSecret, ":SecretString:username}}" ] ]
+      MasterUserPassword: 
+        !Join [ "", [ "{{resolve:secretsmanager:", !Ref DatabaseSecret, ":SecretString:password}}" ] ]
+      Tags:
+        - Key: projectName
+          Value: s7abt
+
+  SecretRDSAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref DatabaseSecret
+      TargetId: !Ref RDSInstance
+      TargetType: AWS::RDS::DBInstance
 
   # ==================== API Gateway ====================
   S7abtApi:
