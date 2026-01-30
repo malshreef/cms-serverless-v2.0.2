@@ -77,7 +77,7 @@ s7abt-dubai/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/s7abt-dubai.git
+git clone https://github.com/malshreef/cms-serverless-v2.0.2.git
 cd s7abt-dubai
 ```
 
