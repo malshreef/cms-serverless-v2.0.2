@@ -180,7 +180,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-list-articles-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: articles/list.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -199,7 +199,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-get-article-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: articles/get.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -218,7 +218,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-share-article-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: articles/share.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -238,7 +238,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-list-news-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: news/list.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -257,7 +257,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-get-news-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: news/get.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -277,7 +277,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-list-sections-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: sections/list.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -296,7 +296,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-get-section-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: sections/get.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -316,7 +316,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-list-tags-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: tags/list.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -335,7 +335,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-get-tag-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: tags/get.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -355,7 +355,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-get-user-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: users/get.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
@@ -374,7 +374,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub s7abt-get-user-articles-${Environment}
-      CodeUri: .
+      CodeUri: ../
       Handler: users/articles.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
