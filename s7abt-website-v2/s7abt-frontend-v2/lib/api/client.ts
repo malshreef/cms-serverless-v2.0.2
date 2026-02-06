@@ -36,6 +36,7 @@ export interface Article {
   s7b_user_linkedin?: string;
   reading_time?: number;
   premium?: boolean;
+  snippet?: string;
   sections?: Section[];
   tags?: Tag[];
   comments?: Comment[];
@@ -391,7 +392,7 @@ export const sectionsApi = {
       console.warn(`Section ${id} API failed, using fallback from sections list`);
       try {
         const { sections } = await sectionsApi.getAll();
-        const section = sections.find(s => s.s7b_section_id === parseInt(String(id), 10));
+        const section = sections.find((s: Section) => s.s7b_section_id === parseInt(String(id), 10));
         if (section) {
           return { section };
         }

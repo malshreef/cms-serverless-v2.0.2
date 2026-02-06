@@ -144,12 +144,16 @@ npm run dev
 
 ## User Roles
 
-| Role | Permissions |
-|------|-------------|
-| **Admin** | Full system access, user management, settings |
-| **Content Manager** | Full content CRUD, publish permissions |
-| **Content Specialist** | Own content only, no publish access |
-| **Viewer** | Read-only access |
+**IMPORTANT:** All Cognito users must have the `custom:role` attribute configured. The application uses this attribute for role-based access control.
+
+| Role | custom:role Value | Permissions |
+|------|-------------------|-------------|
+| **Admin** | `admin` | Full system access, user management, settings |
+| **Content Manager** | `content_manager` | Full content CRUD, publish permissions |
+| **Content Specialist** | `content_specialist` | Own content only, no publish access |
+| **Viewer** | `viewer` | Read-only access |
+
+See the [Deployment Guide](DEPLOYMENT.md#34-create-admin-users-in-cognito) for instructions on creating users with the required role attribute.
 
 ## API Endpoints
 

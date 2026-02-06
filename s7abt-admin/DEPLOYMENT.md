@@ -202,6 +202,45 @@ aws s3 website s3://s7abt-admin-frontend --index-document index.html --error-doc
 3. Add SSL certificate for custom domain
 4. Set cache behaviors for static assets
 
+### 3.4 Create Admin Users in Cognito
+
+After deploying the admin backend, create users in the Cognito User Pool. **IMPORTANT:** All users must have the `custom:role` attribute set to one of the following values:
+
+| Role Value | Access Level |
+|------------|-------------|
+| `admin` | Full system access, user management, settings |
+| `content_manager` | Full content CRUD, publish permissions |
+| `content_specialist` | Own content only, no publish access |
+| `viewer` | Read-only access |
+
+**Create a new admin user:**
+
+```bash
+# Create user
+aws cognito-idp admin-create-user \
+  --user-pool-id <your-user-pool-id> \
+  --username admin@yourdomain.com \
+  --temporary-password "TempPassword123!" \
+  --profile <your-aws-profile>
+
+# Set permanent password
+aws cognito-idp admin-set-user-password \
+  --user-pool-id <your-user-pool-id> \
+  --username admin@yourdomain.com \
+  --password "SecurePassword123!" \
+  --permanent \
+  --profile <your-aws-profile>
+
+# Add custom:role attribute (REQUIRED)
+aws cognito-idp admin-update-user-attributes \
+  --user-pool-id <your-user-pool-id> \
+  --username admin@yourdomain.com \
+  --user-attributes Name=custom:role,Value=admin \
+  --profile <your-aws-profile>
+```
+
+**Note:** Users cannot login without the `custom:role` attribute. The application uses this attribute for role-based access control.
+
 ---
 
 ## 4. Database (RDS MySQL)

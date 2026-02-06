@@ -1,0 +1,13 @@
+{
+  "name": "s7abt-database-init",
+  "version": "1.0.0",
+  "description": "S7abt CMS Database Initialization",
+  "main": "lambda-init.js",
+  "scripts": {
+    "init": "node init-db.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.600.0",
+    "mysql2": "^3.11.0"
+  }
+}

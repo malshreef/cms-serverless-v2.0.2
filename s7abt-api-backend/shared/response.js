@@ -16,7 +16,7 @@ const success = (data, statusCode = 200) => {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*', // Configure based on your domain
       'Access-Control-Allow-Credentials': true,
-      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With',
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
     },
     body: JSON.stringify({
@@ -51,7 +51,7 @@ const error = (message, statusCode = 500, details = null) => {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Credentials': true,
-      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With',
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
     },
     body: JSON.stringify(body)

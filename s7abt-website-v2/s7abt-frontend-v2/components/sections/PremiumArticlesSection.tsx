@@ -79,7 +79,7 @@ export default function PremiumArticlesSection({ articles, locale }: PremiumArti
                   </span>
                 )}
                 <span className={`text-muted-blue text-sm ${isRTL ? 'mr-3' : 'ml-3'}`}>
-                  {formatReadingTime(featuredArticle.readingTime || featuredArticle.reading_time || 5, locale)}
+                  {formatReadingTime(featuredArticle.reading_time || 5, locale)}
                 </span>
               </div>
 
@@ -151,7 +151,7 @@ export default function PremiumArticlesSection({ articles, locale }: PremiumArti
 
                     {/* Reading Time */}
                     <span className="text-xs text-muted-blue">
-                      {formatReadingTime(article.readingTime || article.reading_time || 5, locale)}
+                      {formatReadingTime(article.reading_time || 5, locale)}
                     </span>
                   </div>
                 </div>

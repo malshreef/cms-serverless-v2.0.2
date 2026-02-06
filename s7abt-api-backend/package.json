@@ -4,7 +4,8 @@
   "description": "S7abt Complete Serverless API - Articles, News, Sections, Tags, Users",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No test specified\"",
+    "deploy": "node deploy.js"
   },
   "keywords": [
     "serverless",

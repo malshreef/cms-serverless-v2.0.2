@@ -34,7 +34,7 @@ export default function FeaturedSection({ articles }: FeaturedSectionProps) {
               date={article.s7b_article_add_date}
               category={article.sections?.[0]?.s7b_section_name}
               featured={true}
-              isPremium={article.isPremium || false}
+              isPremium={article.premium || false}
             />
           ))}
         </div>

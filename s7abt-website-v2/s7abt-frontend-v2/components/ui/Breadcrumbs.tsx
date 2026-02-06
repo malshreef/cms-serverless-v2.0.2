@@ -82,7 +82,7 @@ export default function Breadcrumbs({ items, variant = 'dark' }: BreadcrumbsProp
               >
                 {isClickable ? (
                   <Link
-                    href={item.href}
+                    href={item.href!}
                     className={`${linkColors} transition-colors duration-200 hover:underline`}
                   >
                     {item.label}

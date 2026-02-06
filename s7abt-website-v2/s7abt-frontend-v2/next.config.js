@@ -4,6 +4,8 @@ const withNextIntl = createNextIntlPlugin('./i18n.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Output mode for standalone deployment (Amplify SSR)
+  output: 'standalone',
   images: {
     remotePatterns: [
       {

@@ -18,13 +18,13 @@ export default function SearchResultCard({ article }: SearchResultCardProps) {
   const [imageError, setImageError] = useState(false);
 
   // Image URL with proper fallback
-  const hasValidImage = article.s7b_article_image && 
-                        article.s7b_article_image !== 'no-image.png' && 
+  const hasValidImage = article.s7b_article_image &&
+                        article.s7b_article_image !== 'no-image.png' &&
                         article.s7b_article_image.trim() !== '';
-  
-  const imageUrl = hasValidImage && !imageError
+
+  const imageUrl: string = (hasValidImage && !imageError
     ? formatImageUrl(article.s7b_article_image)
-    : PLACEHOLDER_IMAGE;
+    : PLACEHOLDER_IMAGE) || PLACEHOLDER_IMAGE;
 
   const category = article.sections?.[0]?.s7b_section_name || 'عام';
   

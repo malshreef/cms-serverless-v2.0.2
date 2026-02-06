@@ -164,7 +164,7 @@ export default async function Vision2030Page({ params }: Vision2030PageProps) {
 
             {articles.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {articles.map((article) => (
+                {articles.map((article: any) => (
                   <ArticleCard
                     key={article.s7b_article_id}
                     article={article}

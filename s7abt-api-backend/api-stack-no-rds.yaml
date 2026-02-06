@@ -37,7 +37,7 @@ Globals:
   Api:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
       AllowOrigin: "'*'"
 
 Resources:
@@ -45,6 +45,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub s7abt-lambda-role-${Environment}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -85,6 +86,7 @@ Resources:
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupName: !Sub s7abt-lambda-sg-${Environment}
       GroupDescription: Security group for S7abt Lambda functions
       VpcId: !Ref VpcId
       Tags:
@@ -168,11 +170,6 @@ Resources:
     Properties:
       Name: !Sub s7abt-api-${Environment}
       StageName: !Ref Environment
-      Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With'"
-        AllowOrigin: "'*'"
-        AllowCredentials: false
       Tags:
         projectName: s7abt
         Environment: !Ref Environment
@@ -391,33 +388,6 @@ Resources:
             RestApiId: !Ref S7abtApi
             Path: /users/{id}/articles
             Method: GET
-
-  # ==================== DATABASE INIT FUNCTION ====================
-  InitDatabaseFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub s7abt-init-database-${Environment}
-      CodeUri: database/
-      Handler: lambda-init.handler
-      Timeout: 60
-      Role: !GetAtt LambdaExecutionRole.Arn
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroup
-        SubnetIds: !Ref SubnetIds
-      Events:
-        InitDb:
-          Type: Api
-          Properties:
-            RestApiId: !Ref S7abtApi
-            Path: /admin/init-db
-            Method: POST
-
-  InitDatabaseLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/s7abt-init-database-${Environment}
-      RetentionInDays: 7
 
   # ==================== CLOUDWATCH LOG GROUPS ====================
   ListArticlesLogGroup:

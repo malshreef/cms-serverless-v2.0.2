@@ -1,12 +1,18 @@
-# Environment variables - NEVER commit these
+# Environment variables - NEVER commit real secrets
 .env
 .env.local
 .env.*.local
-.env.production
 .env.staging
 .env.development
 .env.test
-*.env
+# Note: .env.production with NEXT_PUBLIC_ vars is safe to commit
+# Never add private keys or secrets to .env.production
+
+# Sensitive data patterns
+*secret*
+*credential*
+*password*.txt
+*password*.json
 
 # AWS credentials and secrets
 aws-credentials
@@ -68,6 +74,16 @@ coverage/
 .aws-sam/
 .serverless/
 samconfig.toml
+packaged.yaml
+
+# AWS deployment artifacts (contain account-specific info)
+**/actual_subnets*.json
+**/events*.json
+**/stack_status*
+**/stacks_list*.json
+**/*_events*.json
+**/s7abt_events*.json
+**/s7build/
 
 # Temporary files
 tmp/
