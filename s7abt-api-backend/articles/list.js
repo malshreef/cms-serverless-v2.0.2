@@ -65,8 +65,7 @@ exports.handler = async (event) => {
       FROM s7b_article a
       LEFT JOIN s7b_section s ON a.s7b_section_id = s.s7b_section_id
       LEFT JOIN s7b_user u ON a.s7b_user_id = u.s7b_user_id
-      WHERE a.s7b_article_active = 1
-    `;
+      WHERE a.s7b_article_active = 1     `;
     
     const params = [];
     
@@ -99,8 +98,8 @@ exports.handler = async (event) => {
     query += ' ORDER BY a.s7b_article_add_date DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
     
-    // Execute query
-    const [articles] = await connection.execute(query, params);
+    // Execute query using .query() for compatibility with dynamic params
+    const [articles] = await connection.query(query, params);
 
     // Calculate reading time for each article and remove div bodies from response
     const processedArticles = articles.map(article => {
@@ -146,7 +145,7 @@ exports.handler = async (event) => {
       countParams.push(searchTerm, searchTerm);
     }
     
-    const [countResult] = await connection.execute(countQuery, countParams);
+    const [countResult] = await connection.query(countQuery, countParams);
     const total = countResult[0].total;
     
     await connection.end();

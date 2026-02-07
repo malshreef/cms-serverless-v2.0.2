@@ -35,7 +35,7 @@ async function getConnection() {
     port: dbConfig.port,
     user: dbConfig.username,
     password: dbConfig.password,
-    database: dbConfig.database,
+    database: dbConfig.dbname || dbConfig.database || 's7abt_dubai',
     charset: 'utf8mb4'
   });
 

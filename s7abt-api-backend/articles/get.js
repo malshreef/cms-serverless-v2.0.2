@@ -48,7 +48,7 @@ exports.handler = async (event) => {
       WHERE a.s7b_article_id = ? AND a.s7b_article_active = 1
     `;
     
-    const [articles] = await connection.execute(articleQuery, [articleId]);
+    const [articles] = await connection.query(articleQuery, [articleId]);
     
     if (articles.length === 0) {
       await connection.end();
@@ -67,7 +67,7 @@ exports.handler = async (event) => {
       WHERE ti.s7b_article_id = ?
     `;
     
-    const [tags] = await connection.execute(tagsQuery, [articleId]);
+    const [tags] = await connection.query(tagsQuery, [articleId]);
     article.tags = tags;
     
     // Get comments for this article
@@ -85,7 +85,7 @@ exports.handler = async (event) => {
       ORDER BY s7b_comment_add_date DESC
     `;
     
-    const [comments] = await connection.execute(commentsQuery, [articleId]);
+    const [comments] = await connection.query(commentsQuery, [articleId]);
     article.comments = comments;
 
     // Get share statistics for this article
@@ -99,7 +99,7 @@ exports.handler = async (event) => {
     `;
 
     try {
-      const [shareStats] = await connection.execute(shareStatsQuery, [articleId]);
+      const [shareStats] = await connection.query(shareStatsQuery, [articleId]);
 
       // Format share stats
       article.shareStats = {

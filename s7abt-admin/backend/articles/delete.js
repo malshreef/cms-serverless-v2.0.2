@@ -18,7 +18,7 @@ exports.handler = async (event) => {
 
     // Check if article exists
     const existingArticle = await db.queryOne(
-      'SELECT s7b_article_id, s7b_article_title, s7b_user_id FROM s7b_article WHERE s7b_article_id = ? AND s7b_article_deleted_at IS NULL',
+      'SELECT s7b_article_id, s7b_article_title, s7b_user_id FROM s7b_article WHERE s7b_article_id = ? AND s7b_article_active = 1',
       [articleId]
     );
 
@@ -40,11 +40,11 @@ exports.handler = async (event) => {
       return auth.response;
     }
 
-    // Soft delete the article
+    // Soft delete the article by setting active = 0
     const sql = `
-      UPDATE s7b_article 
-      SET s7b_article_deleted_at = NOW()
-      WHERE s7b_article_id = ? AND s7b_article_deleted_at IS NULL
+      UPDATE s7b_article
+      SET s7b_article_active = 0
+      WHERE s7b_article_id = ? AND s7b_article_active = 1
     `;
 
     await db.query(sql, [articleId]);
