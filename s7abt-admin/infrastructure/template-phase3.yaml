@@ -5,27 +5,53 @@ Description: S7abt Admin Dashboard - Phase 3 CMS with Articles CRUD
 Parameters:
   Environment:
     Type: String
-    Default: dev
+    Default: prod
     AllowedValues:
       - dev
       - staging
       - prod
     Description: Environment name
-  
+
   DatabaseSecretArn:
     Type: String
     Description: ARN of the Secrets Manager secret containing database credentials
-    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+
+  UserPoolArn:
+    Type: String
+    Description: ARN of existing Cognito User Pool
+
+  UserPoolId:
+    Type: String
+    Description: ID of existing Cognito User Pool (e.g., us-east-1_XXXXXXX)
+
+  MediaBucketName:
+    Type: String
+    Description: Name of existing S3 media bucket
+
+  VpcSecurityGroupId:
+    Type: String
+    Description: Security group ID for Lambda functions to access RDS
+    Default: sg-07ac7211c721e6f06
+
+  VpcSubnetIds:
+    Type: CommaDelimitedList
+    Description: Subnet IDs for Lambda functions (comma-separated)
+    Default: subnet-07351a2d5060f431c,subnet-0a90523721b511e4d,subnet-07f0ff07772cc51b6
 
 Globals:
   Function:
     Runtime: nodejs18.x
     Timeout: 30
     MemorySize: 256
+    VpcConfig:
+      SecurityGroupIds:
+        - !Ref VpcSecurityGroupId
+      SubnetIds: !Ref VpcSubnetIds
     Environment:
       Variables:
         ENVIRONMENT: !Ref Environment
         DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        DB_SECRET_NAME: !Ref DatabaseSecretArn
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
     Tags:
       Project: S7abt
@@ -33,84 +59,6 @@ Globals:
       Phase: "3"
 
 Resources:
-  # ========================================
-  # S3 Bucket for Image Uploads
-  # ========================================
-  
-  MediaBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub s7abt-media-${Environment}-${AWS::AccountId}
-      CorsConfiguration:
-        CorsRules:
-          - AllowedHeaders:
-              - '*'
-            AllowedMethods:
-              - GET
-              - PUT
-              - POST
-              - DELETE
-            AllowedOrigins:
-              - '*'
-            MaxAge: 3000
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: false
-        BlockPublicPolicy: false
-        IgnorePublicAcls: false
-        RestrictPublicBuckets: false
-      Tags:
-        - Key: Project
-          Value: S7abt
-        - Key: Environment
-          Value: !Ref Environment
-
-  MediaBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref MediaBucket
-      PolicyDocument:
-        Statement:
-          - Sid: PublicReadGetObject
-            Effect: Allow
-            Principal: '*'
-            Action: 's3:GetObject'
-            Resource: !Sub '${MediaBucket.Arn}/*'
-
-  # ========================================
-  # Cognito User Pool (from Phase 2)
-  # ========================================
-  
-  UserPool:
-    Type: AWS::Cognito::UserPool
-    Properties:
-      UserPoolName: !Sub s7abt-admin-${Environment}-userpool
-      AutoVerifiedAttributes:
-        - email
-      UsernameAttributes:
-        - email
-      Schema:
-        - Name: email
-          Required: true
-          Mutable: false
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 8
-          RequireUppercase: true
-          RequireLowercase: true
-          RequireNumbers: true
-          RequireSymbols: true
-
-  UserPoolClient:
-    Type: AWS::Cognito::UserPoolClient
-    Properties:
-      ClientName: !Sub s7abt-admin-${Environment}-client
-      UserPoolId: !Ref UserPool
-      GenerateSecret: false
-      ExplicitAuthFlows:
-        - ALLOW_USER_PASSWORD_AUTH
-        - ALLOW_REFRESH_TOKEN_AUTH
-        - ALLOW_USER_SRP_AUTH
-
   # ========================================
   # IAM Role for Lambda Functions
   # ========================================
@@ -127,6 +75,7 @@ Resources:
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
         - PolicyName: SecretsManagerAccess
           PolicyDocument:
@@ -145,7 +94,22 @@ Resources:
                   - 's3:PutObject'
                   - 's3:GetObject'
                   - 's3:DeleteObject'
-                Resource: !Sub '${MediaBucket.Arn}/*'
+                Resource: !Sub 'arn:aws:s3:::${MediaBucketName}/*'
+        - PolicyName: CognitoAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'cognito-idp:AdminCreateUser'
+                  - 'cognito-idp:AdminSetUserPassword'
+                  - 'cognito-idp:AdminUpdateUserAttributes'
+                  - 'cognito-idp:AdminDeleteUser'
+                  - 'cognito-idp:AdminEnableUser'
+                  - 'cognito-idp:AdminDisableUser'
+                  - 'cognito-idp:AdminGetUser'
+                  - 'cognito-idp:ListUsers'
+                Resource: !Ref UserPoolArn
 
   # ========================================
   # Lambda Functions - Authentication
@@ -163,7 +127,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /auth/me
+            Path: /admin/auth/me
             Method: get
 
   GetDashboardStatsFunction:
@@ -215,7 +179,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles
+            Path: /admin/articles
             Method: get
 
   GetArticleFunction:
@@ -230,7 +194,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/{id}
+            Path: /admin/articles/{id}
             Method: get
 
   CreateArticleFunction:
@@ -245,7 +209,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles
+            Path: /admin/articles
             Method: post
 
   UpdateArticleFunction:
@@ -260,7 +224,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/{id}
+            Path: /admin/articles/{id}
             Method: put
 
   DeleteArticleFunction:
@@ -275,7 +239,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/{id}
+            Path: /admin/articles/{id}
             Method: delete
 
   GetImageUploadUrlFunction:
@@ -287,13 +251,13 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Environment:
         Variables:
-          MEDIA_BUCKET: !Ref MediaBucket
+          MEDIA_BUCKET: !Ref MediaBucketName
       Events:
         ApiEvent:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/image-upload-url
+            Path: /admin/articles/image-upload-url
             Method: post
 
   # ========================================
@@ -312,7 +276,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections
+            Path: /admin/sections
             Method: get
 
   CreateSectionFunction:
@@ -327,7 +291,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections
+            Path: /admin/sections
             Method: post
 
   UpdateSectionFunction:
@@ -342,7 +306,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections/{id}
+            Path: /admin/sections/{id}
             Method: put
 
   DeleteSectionFunction:
@@ -357,7 +321,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections/{id}
+            Path: /admin/sections/{id}
             Method: delete
 
   # ========================================
@@ -376,7 +340,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags
+            Path: /admin/tags
             Method: get
 
   CreateTagFunction:
@@ -391,7 +355,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags
+            Path: /admin/tags
             Method: post
 
   UpdateTagFunction:
@@ -406,7 +370,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags/{id}
+            Path: /admin/tags/{id}
             Method: put
 
   DeleteTagFunction:
@@ -421,13 +385,250 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags/{id}
+            Path: /admin/tags/{id}
+            Method: delete
+
+  # ========================================
+  # Lambda Functions - News CRUD
+  # ========================================
+
+  ListNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-news-${Environment}
+      CodeUri: ../backend/news/
+      Handler: list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/news
+            Method: get
+
+  GetNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-news-${Environment}
+      CodeUri: ../backend/news/
+      Handler: get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/news/{id}
+            Method: get
+
+  CreateNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-news-${Environment}
+      CodeUri: ../backend/news/
+      Handler: create.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/news
+            Method: post
+
+  UpdateNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-news-${Environment}
+      CodeUri: ../backend/news/
+      Handler: update.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/news/{id}
+            Method: put
+
+  DeleteNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-news-${Environment}
+      CodeUri: ../backend/news/
+      Handler: delete.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/news/{id}
+            Method: delete
+
+  # ========================================
+  # Lambda Functions - Users CRUD
+  # ========================================
+
+  ListUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-users-${Environment}
+      CodeUri: ../backend/users/
+      Handler: list-cognito.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPoolId
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/users
+            Method: get
+
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: get-cognito.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPoolId
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/users/{id}
+            Method: get
+
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-create-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: create-cognito.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPoolId
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/users
+            Method: post
+
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: update-cognito.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPoolId
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/users/{id}
+            Method: put
+
+  DeleteUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-user-${Environment}
+      CodeUri: ../backend/users/
+      Handler: delete-cognito.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPoolId
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/users/{id}
+            Method: delete
+
+  # ========================================
+  # Lambda Functions - Tweets CRUD
+  # ========================================
+
+  ListTweetsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-list-tweets-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: list.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/tweets
+            Method: get
+
+  GetTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-get-tweet-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: get.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/tweets/{id}
+            Method: get
+
+  UpdateTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-update-tweet-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: update.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/tweets/{id}
+            Method: put
+
+  DeleteTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-delete-tweet-${Environment}
+      CodeUri: ../backend/tweets/
+      Handler: delete.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /admin/tweets/{id}
             Method: delete
 
   # ========================================
   # API Gateway
   # ========================================
-  
+
   ApiGateway:
     Type: AWS::Serverless::Api
     Properties:
@@ -439,9 +640,10 @@ Resources:
         AllowOrigin: "'*'"
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           CognitoAuthorizer:
-            UserPoolArn: !GetAtt UserPool.Arn
+            UserPoolArn: !Ref UserPoolArn
 
 Outputs:
   ApiEndpoint:
@@ -449,28 +651,4 @@ Outputs:
     Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
     Export:
       Name: !Sub ${AWS::StackName}-ApiEndpoint
-  
-  UserPoolId:
-    Description: Cognito User Pool ID
-    Value: !Ref UserPool
-    Export:
-      Name: !Sub ${AWS::StackName}-UserPoolId
-  
-  UserPoolClientId:
-    Description: Cognito User Pool Client ID
-    Value: !Ref UserPoolClient
-    Export:
-      Name: !Sub ${AWS::StackName}-UserPoolClientId
-  
-  MediaBucketName:
-    Description: S3 bucket for media uploads
-    Value: !Ref MediaBucket
-    Export:
-      Name: !Sub ${AWS::StackName}-MediaBucket
-  
-  MediaBucketUrl:
-    Description: S3 bucket URL for media access
-    Value: !GetAtt MediaBucket.WebsiteURL
-    Export:
-      Name: !Sub ${AWS::StackName}-MediaBucketUrl
 

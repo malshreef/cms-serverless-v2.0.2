@@ -7,6 +7,7 @@
 .env.development
 .env.test
 *.env
+*.txt
 
 # AWS credentials and secrets
 aws-credentials

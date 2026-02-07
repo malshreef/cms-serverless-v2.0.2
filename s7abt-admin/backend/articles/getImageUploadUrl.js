@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-const response = require('../shared/response');
+const response = require('./shared/response');
 const { v4: uuidv4 } = require('uuid');
 
 const s3 = new AWS.S3({

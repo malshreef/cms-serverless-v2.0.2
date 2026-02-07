@@ -1,5 +1,5 @@
-const db = require('../shared/db');
-const response = require('../shared/response');
+const db = require('./shared/db');
+const response = require('./shared/response');
 
 /**
  * List all articles with pagination and filtering

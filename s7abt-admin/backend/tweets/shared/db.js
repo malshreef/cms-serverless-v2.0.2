@@ -55,7 +55,7 @@ async function getPool() {
     port: credentials.port || 3306,
     user: credentials.username,
     password: credentials.password,
-    database: credentials.database || 's7abt',
+    database: credentials.dbname || credentials.database || 's7abt',
     charset: 'utf8mb4',
     waitForConnections: true,
     connectionLimit: 2,
@@ -85,7 +85,7 @@ async function query(sql, params = []) {
   const pool = await getPool();
 
   try {
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await pool.query(sql, params);
     return rows;
   } catch (error) {
     console.error('Query error:', error);

@@ -46,7 +46,7 @@ api.interceptors.response.use(
 
 // API methods
 export const authAPI = {
-  getCurrentUser: () => api.get('/admin/auth/me'),
+  getCurrentUser: () => api.get('/auth/me'),
 };
 
 export const dashboardAPI = {
