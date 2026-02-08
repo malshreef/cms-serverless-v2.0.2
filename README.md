@@ -190,7 +190,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Author
 
-**Mohammed Alshareef**
+**Mohammed Alshareef** m.alshreef@gmail.com
 
 ---
 
