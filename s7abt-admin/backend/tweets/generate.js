@@ -1,45 +1,13 @@
-const Anthropic = require('@anthropic-ai/sdk');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne } = require('./shared/db');
 const { success, error, validationError } = require('./shared/response');
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 
-// Cache for API key
-let anthropicApiKey = null;
-let apiKeyCacheTime = 0;
-const API_KEY_CACHE_TTL = 300000; // 5 minutes
+const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const OPENAI_FUNCTION_NAME = process.env.OPENAI_FUNCTION_NAME || 's7abt-admin-openai-generate-tweets-prod';
 
 /**
- * Get Anthropic API key from Secrets Manager
- */
-async function getAnthropicApiKey() {
-  const now = Date.now();
-
-  if (anthropicApiKey && (now - apiKeyCacheTime) < API_KEY_CACHE_TTL) {
-    return anthropicApiKey;
-  }
-
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'me-central-1' });
-  const secretName = process.env.ANTHROPIC_SECRET_NAME || 's7abt/anthropic/api-key';
-
-  try {
-    const response = await client.send(
-      new GetSecretValueCommand({ SecretId: secretName })
-    );
-
-    const secret = JSON.parse(response.SecretString);
-    anthropicApiKey = secret.api_key || secret.apiKey || secret.ANTHROPIC_API_KEY;
-    apiKeyCacheTime = now;
-
-    return anthropicApiKey;
-  } catch (err) {
-    console.error('Error fetching Anthropic API key:', err);
-    throw new Error('Failed to retrieve Anthropic API key from Secrets Manager');
-  }
-}
-
-/**
- * Generate tweets from an article using Anthropic Claude 3.5
+ * Generate tweets from an article using OpenAI (via non-VPC Lambda)
  */
 exports.handler = async (event) => {
   console.log('Generate Tweets Event:', JSON.stringify(event, null, 2));
@@ -98,12 +66,12 @@ exports.handler = async (event) => {
       ? article.content.substring(0, 3000) + (article.content.length > 3000 ? '...' : '')
       : article.excerpt;
 
-    // Generate tweets using Anthropic Claude 3.5
+    // Generate tweets via non-VPC OpenAI Lambda
     let tweets;
     try {
-      tweets = await generateTweetsWithClaude(article.title, contentPreview, tagNames);
+      tweets = await invokeOpenAILambda(article.title, contentPreview, tagNames);
     } catch (aiErr) {
-      console.error('Claude API failed, using fallback:', aiErr.message);
+      console.error('OpenAI Lambda failed, using fallback:', aiErr.message);
       tweets = generateTweetsWithTemplate(article.title, contentPreview, tagNames);
     }
 
@@ -182,100 +150,22 @@ exports.handler = async (event) => {
 };
 
 /**
- * Generate tweets using Anthropic Claude 3.5 Sonnet
+ * Invoke the non-VPC OpenAI Lambda to generate tweets
  */
-async function generateTweetsWithClaude(title, content, tags = []) {
-  const apiKey = await getAnthropicApiKey();
+async function invokeOpenAILambda(title, content, tags) {
+  const response = await lambdaClient.send(new InvokeCommand({
+    FunctionName: OPENAI_FUNCTION_NAME,
+    InvocationType: 'RequestResponse',
+    Payload: JSON.stringify({ title, content, tags }),
+  }));
 
-  const anthropic = new Anthropic({
-    apiKey: apiKey
-  });
+  const payload = JSON.parse(Buffer.from(response.Payload).toString());
 
-  const prompt = `أنت خبير في إنشاء محتوى وسائل التواصل الاجتماعي لمنصة "سحابت" المتخصصة في الحوسبة السحابية والتقنية.
-
-مطلوب منك إنشاء 4 تغريدات متنوعة وجذابة من المقال التالي. كل تغريدة يجب أن:
-- تكون باللغة العربية مع استخدام المصطلحات التقنية الإنجليزية عند الحاجة
-- لا تتجاوز 250 حرف (لترك مساحة للرابط)
-- تكون فريدة وتسلط الضوء على جانب مختلف من المقال
-- تكون جذابة وتحفز على القراءة والتفاعل
-- تتضمن إيموجي واحد أو اثنين مناسبين
-- لا تستخدم عبارات مملة مثل "مقال جديد" أو "اقرأ المزيد"
-
-عنوان المقال: ${title}
-
-محتوى المقال:
-${content}
-
-${tags.length > 0 ? `الوسوم المرتبطة: ${tags.join(', ')}` : ''}
-
-أنشئ 4 تغريدات بأساليب مختلفة:
-1. تغريدة احترافية (professional) تركز على الفائدة العملية
-2. تغريدة جذابة (engaging) تطرح سؤالاً مثيراً للتفكير
-3. تغريدة تعليمية (educational) تقدم إحصائية أو حقيقة مهمة من المقال
-4. تغريدة ودية (friendly) تشجع على النقاش
-
-أعد النتيجة كـ JSON array فقط بدون أي نص إضافي:
-[
-  {
-    "text": "نص التغريدة",
-    "tone": "professional|engaging|educational|friendly",
-    "hashtags": ["هاشتاق1", "هاشتاق2"]
+  if (response.FunctionError) {
+    throw new Error(payload.errorMessage || 'OpenAI Lambda invocation failed');
   }
-]`;
 
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      temperature: 0.8,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    });
-
-    console.log('Claude Response:', JSON.stringify(response, null, 2));
-
-    // Extract text content
-    const textContent = response.content[0].text;
-
-    // Parse JSON from response
-    const jsonMatch = textContent.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      throw new Error('No valid JSON array found in response');
-    }
-
-    const tweets = JSON.parse(jsonMatch[0]);
-
-    // Valid tones for database ENUM
-    const validTones = ['professional', 'friendly', 'engaging', 'educational'];
-
-    // Map any invalid tone to a valid one
-    const mapTone = (tone) => {
-      if (validTones.includes(tone)) return tone;
-      // Map common alternatives
-      const toneMap = {
-        'question': 'engaging',
-        'fact': 'educational',
-        'informative': 'educational',
-        'casual': 'friendly'
-      };
-      return toneMap[tone] || 'professional';
-    };
-
-    // Validate and clean tweets
-    return tweets.map(tweet => ({
-      text: tweet.text.substring(0, 280),
-      tone: mapTone(tweet.tone || 'professional'),
-      hashtags: (tweet.hashtags || []).slice(0, 4)
-    }));
-
-  } catch (err) {
-    console.error('Anthropic API Error:', err);
-    throw err;
-  }
+  return payload;
 }
 
 /**
@@ -285,28 +175,24 @@ function generateTweetsWithTemplate(title, content, tags = []) {
   const tweets = [];
   const hashtags = tags.slice(0, 3).map(tag => tag.replace(/\s+/g, ''));
 
-  // Template 1: Professional
   tweets.push({
     text: `💡 ${title}\n\nتعرف على أحدث المعلومات والتفاصيل في هذا المقال`,
     tone: 'professional',
     hashtags: [...hashtags, 'سحابت', 'CloudComputing']
   });
 
-  // Template 2: Engaging (Question)
   tweets.push({
     text: `🤔 هل تساءلت يوماً عن ${title.substring(0, 80)}؟\n\nالإجابة في هذا المقال`,
     tone: 'engaging',
     hashtags: [...hashtags, 'تقنية']
   });
 
-  // Template 3: Educational (Fact)
   tweets.push({
     text: `📊 ${title}\n\nحقائق وأرقام مهمة تجدها هنا`,
     tone: 'educational',
     hashtags: [...hashtags, 'معلومات']
   });
 
-  // Template 4: Friendly
   tweets.push({
     text: `🚀 ${title}\n\nشاركنا رأيك في التعليقات!`,
     tone: 'friendly',
@@ -321,7 +207,7 @@ function generateTweetsWithTemplate(title, content, tags = []) {
  */
 function getNextScheduleTime() {
   const now = new Date();
-  const targetHour = 12; // 12:00 UTC = 3:00 PM Riyadh (UTC+3)
+  const targetHour = 12;
 
   const target = new Date(now);
   target.setUTCHours(targetHour, 0, 0, 0);

@@ -19,7 +19,7 @@ exports.handler = async (event) => {
 
     try {
       // Get user from database
-      const [users] = await connection.execute(
+      const [users] = await connection.query(
         `SELECT
           s7b_user_id as id,
           s7b_user_email as email,
@@ -45,12 +45,12 @@ exports.handler = async (event) => {
       const user = users[0];
 
       // Get article and news counts
-      const [articleCount] = await connection.execute(
+      const [articleCount] = await connection.query(
         'SELECT COUNT(*) as count FROM s7b_article WHERE s7b_user_id = ? AND s7b_article_deleted_at IS NULL',
         [userId]
       );
 
-      const [newsCount] = await connection.execute(
+      const [newsCount] = await connection.query(
         'SELECT COUNT(*) as count FROM s7b_news WHERE s7b_user_id = ? AND s7b_news_deleted_at IS NULL',
         [userId]
       );

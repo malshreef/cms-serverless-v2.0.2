@@ -152,13 +152,13 @@ exports.handler = async (event) => {
         SET ${updates.join(', ')}
         WHERE s7b_article_id = ? AND s7b_article_deleted_at IS NULL
       `;
-      await connection.execute(updateSql, params);
+      await connection.query(updateSql, params);
     }
 
     // Update tags if provided
     if (tagIds !== undefined) {
       // Delete existing tags
-      await connection.execute(
+      await connection.query(
         'DELETE FROM s7b_tags_item WHERE s7b_article_id = ?',
         [articleId]
       );
@@ -166,7 +166,7 @@ exports.handler = async (event) => {
       // Insert new tags
       if (tagIds && tagIds.length > 0) {
         for (const tagId of tagIds) {
-          await connection.execute(
+          await connection.query(
             'INSERT INTO s7b_tags_item (s7b_tags_id, s7b_article_id) VALUES (?, ?)',
             [tagId, articleId]
           );

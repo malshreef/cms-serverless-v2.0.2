@@ -54,16 +54,16 @@ exports.handler = async (event) => {
 
     try {
       // Get total count
-      const [countResult] = await connection.execute(
+      const [countResult] = await connection.query(
         `SELECT COUNT(*) as total FROM s7b_user WHERE ${whereClause}`,
         values
       );
 
       const total = countResult[0].total;
 
-      // Get users
-      const [users] = await connection.execute(
-        `SELECT 
+      // Get users (LIMIT/OFFSET as strings for mysql2 prepared statement compatibility)
+      const [users] = await connection.query(
+        `SELECT
           s7b_user_id as id,
           s7b_user_email as email,
           s7b_user_name as name,
@@ -76,21 +76,21 @@ exports.handler = async (event) => {
           s7b_user_linkedin as linkedin,
           s7b_user_cognito_id as cognitoId,
           s7b_user_created_at as createdAt
-        FROM s7b_user 
+        FROM s7b_user
         WHERE ${whereClause}
         ORDER BY s7b_user_created_at DESC
         LIMIT ? OFFSET ?`,
-        [...values, limitNum, offset]
+        [...values, String(limitNum), String(offset)]
       );
 
       // Get article and news counts for each user
       for (const user of users) {
-        const [articleCount] = await connection.execute(
+        const [articleCount] = await connection.query(
           'SELECT COUNT(*) as count FROM s7b_article WHERE s7b_user_id = ? AND s7b_article_deleted_at IS NULL',
           [user.id]
         );
 
-        const [newsCount] = await connection.execute(
+        const [newsCount] = await connection.query(
           'SELECT COUNT(*) as count FROM s7b_news WHERE s7b_user_id = ? AND s7b_news_deleted_at IS NULL',
           [user.id]
         );

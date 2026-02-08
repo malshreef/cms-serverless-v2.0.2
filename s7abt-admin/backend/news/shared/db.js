@@ -84,7 +84,7 @@ async function getConnection() {
       port: dbConfig.port || 3306,
       user: dbConfig.username || dbConfig.user,
       password: dbConfig.password,
-      database: dbConfig.database,
+      database: dbConfig.dbname || dbConfig.database || 's7abt_dubai',
       charset: 'utf8mb4',
       connectTimeout: 10000
     });
@@ -106,7 +106,7 @@ async function getConnection() {
 async function query(sql, params = []) {
   try {
     const connection = await getConnection();
-    const [rows] = await connection.execute(sql, params);
+    const [rows] = await connection.query(sql, params);
     return rows;
   } catch (error) {
     console.error('❌ Query error:', error);
@@ -120,7 +120,7 @@ async function query(sql, params = []) {
 async function queryOne(sql, params = []) {
   try {
     const connection = await getConnection();
-    const [rows] = await connection.execute(sql, params);
+    const [rows] = await connection.query(sql, params);
     return rows.length > 0 ? rows[0] : null;
   } catch (error) {
     console.error('❌ QueryOne error:', error);

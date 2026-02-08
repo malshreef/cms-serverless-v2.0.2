@@ -562,13 +562,13 @@ export const searchApi = {
     }
   },
 
-  // Search articles by tags using the new dedicated Tags API
+  // Search articles by tags using the dedicated Tags API
   byTags: async (tags: string[], limit = 20, offset = 0) => {
     try {
       console.log('Fetching articles by tags using Tags API:', tags);
 
-      // Use the new dedicated Tags API endpoint
-      const TAGS_API_URL = 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com/default/GetArticlesByTags';
+      // Use the GetArticlesByTags endpoint (separate from NEXT_PUBLIC_TAGS_API_URL which is for tag ID lookups)
+      const TAGS_API_URL = `${API_BASE_URL}/GetArticlesByTags`;
       const tagsParam = tags.join(',');
       const url = `${TAGS_API_URL}?tags=${encodeURIComponent(tagsParam)}&limit=${limit}&offset=${offset}`;
 

@@ -3,19 +3,17 @@ const { success, error } = require('../shared/response');
 
 exports.handler = async (event) => {
   console.log('Event:', JSON.stringify(event, null, 2));
-  
+
   try {
     const articleId = event.pathParameters?.id;
-    
+
     if (!articleId) {
       return error('Article ID is required', null, 400);
     }
-    
-    const connection = await db.getConnection();
-    
+
     // Get article with correct table and column names
     const articleQuery = `
-      SELECT 
+      SELECT
         a.s7b_article_id as id,
         a.s7b_article_title as title,
         a.s7b_article_description as description,
@@ -45,34 +43,33 @@ exports.handler = async (event) => {
       FROM s7b_article a
       LEFT JOIN s7b_section s ON a.s7b_section_id = s.s7b_section_id
       LEFT JOIN s7b_user u ON a.s7b_user_id = u.s7b_user_id
-      WHERE a.s7b_article_id = ? AND a.s7b_article_active = 1
+      WHERE a.s7b_article_id = ? AND a.s7b_article_active = 1 AND a.s7b_article_deleted_at IS NULL
     `;
-    
-    const [articles] = await connection.query(articleQuery, [articleId]);
-    
+
+    const articles = await db.query(articleQuery, [articleId]);
+
     if (articles.length === 0) {
-      await connection.end();
       return error('Article not found', null, 404);
     }
-    
+
     const article = articles[0];
-    
+
     // Get tags for this article
     const tagsQuery = `
-      SELECT 
+      SELECT
         t.s7b_tags_id as id,
         t.s7b_tags_name as name
       FROM s7b_tags t
       INNER JOIN s7b_tags_item ti ON t.s7b_tags_id = ti.s7b_tags_id
       WHERE ti.s7b_article_id = ?
     `;
-    
-    const [tags] = await connection.query(tagsQuery, [articleId]);
+
+    const tags = await db.query(tagsQuery, [articleId]);
     article.tags = tags;
-    
+
     // Get comments for this article
     const commentsQuery = `
-      SELECT 
+      SELECT
         s7b_comment_id as id,
         s7b_comment_user_name as authorName,
         s7b_comment_user_email as authorEmail,
@@ -84,8 +81,8 @@ exports.handler = async (event) => {
       WHERE s7b_article_id = ? AND s7b_comment_active = 1
       ORDER BY s7b_comment_add_date DESC
     `;
-    
-    const [comments] = await connection.query(commentsQuery, [articleId]);
+
+    const comments = await db.query(commentsQuery, [articleId]);
     article.comments = comments;
 
     // Get share statistics for this article
@@ -99,7 +96,7 @@ exports.handler = async (event) => {
     `;
 
     try {
-      const [shareStats] = await connection.query(shareStatsQuery, [articleId]);
+      const shareStats = await db.query(shareStatsQuery, [articleId]);
 
       // Format share stats
       article.shareStats = {
@@ -126,10 +123,8 @@ exports.handler = async (event) => {
       };
     }
 
-    await connection.end();
-
     return success({ article });
-    
+
   } catch (err) {
     console.error('Error:', err);
     return error('Failed to fetch article', err.message);

@@ -69,8 +69,7 @@ async function getPool() {
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
-    connectTimeout: 10000,
-    acquireTimeout: 10000
+    connectTimeout: 10000
   });
 
   // Handle pool errors
@@ -92,6 +91,23 @@ async function query(sql, params = []) {
 
   try {
     const [rows] = await pool.execute(sql, params);
+    return rows;
+  } catch (error) {
+    console.error('Query error:', error);
+    console.error('SQL:', sql);
+    console.error('Params:', params);
+    throw error;
+  }
+}
+
+/**
+ * Execute a query with .query() method (supports dynamic SQL with LIMIT/OFFSET)
+ */
+async function rawQuery(sql, params = []) {
+  const pool = await getPool();
+
+  try {
+    const [rows] = await pool.query(sql, params);
     return rows;
   } catch (error) {
     console.error('Query error:', error);
@@ -134,7 +150,6 @@ async function closePool() {
     try {
       await pool.end();
       pool = null;
-      console.log('Database pool closed');
     } catch (error) {
       console.error('Error closing pool:', error);
     }
@@ -143,6 +158,7 @@ async function closePool() {
 
 module.exports = {
   query,
+  rawQuery,
   queryOne,
   getConnection,
   beginTransaction,

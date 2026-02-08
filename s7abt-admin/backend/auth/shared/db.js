@@ -58,7 +58,7 @@ async function getPool() {
     port: credentials.port || 3306,
     user: credentials.username,
     password: credentials.password,
-    database: credentials.database || 's7abt',
+    database: credentials.dbname || credentials.database || 's7abt_dubai',
     charset: 'utf8mb4',
     waitForConnections: true,
     connectionLimit: 2, // Low limit for Lambda (max 2 connections per function)

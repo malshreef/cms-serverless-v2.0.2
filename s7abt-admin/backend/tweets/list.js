@@ -76,15 +76,22 @@ exports.handler = async (event) => {
       FROM s7b_tweets
       WHERE ${whereClause}
       ORDER BY s7b_tweet_scheduled_time ASC, s7b_tweet_created_at DESC
-      LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset]
+      LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+      queryParams
     );
 
-    // Parse JSON hashtags
-    const tweetsWithParsedData = tweets.map(tweet => ({
-      ...tweet,
-      hashtags: tweet.hashtags ? JSON.parse(tweet.hashtags) : []
-    }));
+    // Parse JSON hashtags safely
+    const tweetsWithParsedData = tweets.map(tweet => {
+      let hashtags = [];
+      if (tweet.hashtags) {
+        try {
+          hashtags = typeof tweet.hashtags === 'string' ? JSON.parse(tweet.hashtags) : tweet.hashtags;
+        } catch (e) {
+          hashtags = [];
+        }
+      }
+      return { ...tweet, hashtags };
+    });
 
     return success({
       tweets: tweetsWithParsedData,

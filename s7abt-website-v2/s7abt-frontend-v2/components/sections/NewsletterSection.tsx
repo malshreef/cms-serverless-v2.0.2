@@ -15,7 +15,8 @@ export default function NewsletterSection() {
     setStatus('loading');
 
     try {
-      const response = await fetch('/api/contact', {
+      const contactApiUrl = process.env.NEXT_PUBLIC_CONTACT_API_URL || '/api/contact';
+      const response = await fetch(contactApiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

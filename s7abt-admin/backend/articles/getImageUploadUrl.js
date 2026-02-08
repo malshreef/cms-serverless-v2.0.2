@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-const response = require('../shared/response');
+const response = require('./shared/response');
 const { v4: uuidv4 } = require('uuid');
 
 const s3 = new AWS.S3({
@@ -60,7 +60,8 @@ exports.handler = async (event) => {
     return response.success({
       uploadUrl: presignedUrl,
       publicUrl: publicUrl,
-      s3Key: s3Key,
+      fileKey: s3Key,  // Frontend expects 'fileKey'
+      s3Key: s3Key,    // Keep for backward compatibility
       expiresIn: 300
     });
 

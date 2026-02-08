@@ -47,7 +47,7 @@ async function getConnection() {
     port: dbConfig.port,
     user: dbConfig.username,
     password: dbConfig.password,
-    database: dbConfig.database,
+    database: dbConfig.dbname || dbConfig.database || 's7abt_dubai',
     charset: 'utf8mb4'
   });
 
@@ -59,7 +59,7 @@ async function getConnection() {
  */
 async function query(sql, params = []) {
   const connection = await getConnection();
-  const [rows] = await connection.execute(sql, params);
+  const [rows] = await connection.query(sql, params);
   return rows;
 }
 
@@ -68,7 +68,7 @@ async function query(sql, params = []) {
  */
 async function queryOne(sql, params = []) {
   const connection = await getConnection();
-  const [rows] = await connection.execute(sql, params);
+  const [rows] = await connection.query(sql, params);
   return rows.length > 0 ? rows[0] : null;
 }
 

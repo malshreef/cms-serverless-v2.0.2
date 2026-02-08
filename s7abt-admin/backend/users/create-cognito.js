@@ -66,7 +66,7 @@ exports.handler = async (event) => {
 
     try {
       // Check if email already exists in database
-      const [existingUsers] = await connection.execute(
+      const [existingUsers] = await connection.query(
         'SELECT s7b_user_id FROM s7b_user WHERE s7b_user_email = ? AND s7b_user_deleted_at IS NULL',
         [email]
       );
@@ -108,7 +108,7 @@ exports.handler = async (event) => {
 
       // Step 3: Create user in database
       console.log('Creating user in database...');
-      const [result] = await connection.execute(
+      const [result] = await connection.query(
         `INSERT INTO s7b_user (
           s7b_user_username,
           s7b_user_password,
@@ -131,7 +131,7 @@ exports.handler = async (event) => {
       console.log('Database user created with ID:', userId);
 
       // Fetch the created user
-      const [users] = await connection.execute(
+      const [users] = await connection.query(
         `SELECT 
           s7b_user_id as id,
           s7b_user_email as email,

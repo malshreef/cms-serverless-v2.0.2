@@ -138,7 +138,7 @@ npm run dev
 
 - [Architecture Guide](ARCHITECTURE.md) - Detailed system architecture and data flow
 - [Deployment Guide](DEPLOYMENT.md) - Step-by-step deployment instructions
-- [Admin Testing Plan](s7abt-admin/TESTING_PLAN.md) - Comprehensive test cases
+
 
 ## User Roles
 

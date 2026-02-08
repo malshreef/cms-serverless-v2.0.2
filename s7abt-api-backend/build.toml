@@ -9,4 +9,13 @@ manifest_hash = ""
 packagetype = "Zip"
 functions = ["ListArticlesFunction", "GetArticleFunction", "ShareArticleFunction", "ListNewsFunction", "GetNewsFunction", "ListSectionsFunction", "GetSectionFunction", "ListTagsFunction", "GetTagFunction", "GetUserFunction", "GetUserArticlesFunction"]
 
+[function_build_definitions.ed6e3b27-8bbf-4def-8e95-cc434a5bda7e]
+codeuri = "C:\\xampp5_6\\htdocs\\s7abt_serverless\\S7abt-Opensource-Deploy\\cms-serverless-v2.0.2\\s7abt-api-backend\\database"
+runtime = "nodejs20.x"
+architecture = "x86_64"
+handler = "lambda-init.handler"
+manifest_hash = ""
+packagetype = "Zip"
+functions = ["InitDatabaseFunction"]
+
 [layer_build_definitions]

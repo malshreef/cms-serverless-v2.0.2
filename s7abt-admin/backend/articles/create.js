@@ -126,7 +126,7 @@ exports.handler = async (event) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
-    const [result] = await connection.execute(insertSql, [
+    const [result] = await connection.query(insertSql, [
       title,
       finalSlug,
       excerpt || 'Description',
@@ -152,7 +152,7 @@ exports.handler = async (event) => {
     // Insert tags if provided
     if (tagIds && tagIds.length > 0) {
       for (const tagId of tagIds) {
-        await connection.execute(
+        await connection.query(
           'INSERT INTO s7b_tags_item (s7b_tags_id, s7b_article_id) VALUES (?, ?)',
           [tagId, articleId]
         );

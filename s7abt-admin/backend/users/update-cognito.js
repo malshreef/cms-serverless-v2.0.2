@@ -46,7 +46,7 @@ exports.handler = async (event) => {
 
     try {
       // Get existing user from database
-      const [users] = await connection.execute(
+      const [users] = await connection.query(
         `SELECT 
           s7b_user_id as id,
           s7b_user_email as email,
@@ -94,7 +94,7 @@ exports.handler = async (event) => {
 
         // Check if this is the last admin
         if (existingUser.role === 'admin' && role !== 'admin') {
-          const [adminCount] = await connection.execute(
+          const [adminCount] = await connection.query(
             'SELECT COUNT(*) as count FROM s7b_user WHERE s7b_user_role = ? AND s7b_user_deleted_at IS NULL',
             ['admin']
           );
@@ -191,14 +191,14 @@ exports.handler = async (event) => {
       if (updates.length > 0) {
         console.log('Updating database...');
         values.push(userId);
-        await connection.execute(
+        await connection.query(
           `UPDATE s7b_user SET ${updates.join(', ')} WHERE s7b_user_id = ?`,
           values
         );
       }
 
       // Fetch updated user
-      const [updatedUsers] = await connection.execute(
+      const [updatedUsers] = await connection.query(
         `SELECT 
           s7b_user_id as id,
           s7b_user_email as email,
