@@ -11,8 +11,8 @@ async function getOpenAIClient() {
     return openaiClient;
   }
 
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
-  const secretName = process.env.OPENAI_SECRET_NAME || 's7abt/openai/credentials';
+  const client = new SecretsManagerClient({ region: process.env.AWS_REGION });
+  const secretName = process.env.OPENAI_SECRET_NAME;
 
   const response = await client.send(
     new GetSecretValueCommand({ SecretId: secretName })

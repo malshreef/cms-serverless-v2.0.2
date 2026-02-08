@@ -33,7 +33,10 @@ async function getTwitterCredentials() {
     return secretCache;
   }
 
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'me-central-1' });
+  if (!process.env.AWS_REGION) {
+    throw new Error('AWS_REGION environment variable is not set');
+  }
+  const client = new SecretsManagerClient({ region: process.env.AWS_REGION });
   const secretName = process.env.TWITTER_SECRET_NAME || 's7abt/twitter/credentials';
 
   try {

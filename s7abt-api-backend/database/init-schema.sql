@@ -5,8 +5,8 @@
 -- =====================================================
 
 -- Create database if not exists
-CREATE DATABASE IF NOT EXISTS s7abt_dubai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE s7abt_dubai;
+CREATE DATABASE IF NOT EXISTS s7abt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE s7abt;
 
 -- =====================================================
 -- Users Table
@@ -209,4 +209,4 @@ WHERE NOT EXISTS (SELECT 1 FROM s7b_tags WHERE s7b_tags_slug = 'رؤية-2030');
 -- Verification
 -- =====================================================
 SELECT 'Database schema created successfully!' AS status;
-SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = 's7abt_dubai';
+SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = 's7abt';

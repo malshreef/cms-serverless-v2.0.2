@@ -9,7 +9,7 @@ const FROM_EMAIL = process.env.CONTACT_FROM_EMAIL || 'noreply@example.com';
 
 // Initialize SES client
 const sesClient = new SESClient({
-    region: process.env.AWS_REGION || 'me-central-1',
+    region: process.env.AWS_REGION || '<your-region>',
 });
 
 /**

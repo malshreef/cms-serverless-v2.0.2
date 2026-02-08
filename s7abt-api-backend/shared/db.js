@@ -17,9 +17,15 @@ async function getDbCredentials() {
     return secretCache;
   }
 
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
-  // Support both DB_SECRET_ARN and DB_SECRET_NAME environment variables
-  const secretName = process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME || 's7abt/database/credentials-production';
+  const region = process.env.AWS_REGION;
+  if (!region) {
+    throw new Error('AWS_REGION environment variable is not set');
+  }
+  const client = new SecretsManagerClient({ region });
+  const secretName = process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME;
+  if (!secretName) {
+    throw new Error('DB_SECRET_ARN or DB_SECRET_NAME environment variable is required');
+  }
 
   try {
     const response = await client.send(
@@ -60,7 +66,7 @@ async function getPool() {
     port: credentials.port || 3306,
     user: credentials.username,
     password: credentials.password,
-    database: credentials.dbname || credentials.database || 's7abt',
+    database: credentials.dbname || credentials.database,
     charset: 'utf8mb4',
     waitForConnections: true,
     connectionLimit: 2,

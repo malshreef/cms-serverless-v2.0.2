@@ -15,7 +15,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const client = new SecretsManagerClient({ region: 'us-east-1' });
+    const client = new SecretsManagerClient({ region: process.env.AWS_REGION });
     const secretArn = process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME || process.env.DATABASE_SECRET_ARN;
     const response = await client.send(new GetSecretValueCommand({ SecretId: secretArn }));
     const credentials = JSON.parse(response.SecretString);

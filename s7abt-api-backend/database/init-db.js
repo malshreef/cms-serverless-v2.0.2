@@ -10,7 +10,7 @@
  *   DB_PORT - Database port (default: 3306)
  *   DB_USER - Database username
  *   DB_PASSWORD - Database password
- *   DB_NAME - Database name (default: s7abt_dubai)
+ *   DB_NAME - Database name (default: s7abt)
  */
 
 const mysql = require('mysql2/promise');
@@ -29,7 +29,7 @@ async function initializeDatabase() {
     multipleStatements: true
   };
 
-  const dbName = process.env.DB_NAME || 's7abt_dubai';
+  const dbName = process.env.DB_NAME || 's7abt';
 
   console.log(`📊 Database Configuration:`);
   console.log(`   Host: ${config.host}`);

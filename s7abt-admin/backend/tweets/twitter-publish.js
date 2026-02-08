@@ -19,8 +19,8 @@ async function getTwitterCredentials() {
     return secretCache;
   }
 
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
-  const secretName = process.env.TWITTER_SECRET_NAME || 's7abt/twitter/credentials';
+  const client = new SecretsManagerClient({ region: process.env.AWS_REGION });
+  const secretName = process.env.TWITTER_SECRET_NAME;
 
   const response = await client.send(
     new GetSecretValueCommand({ SecretId: secretName })

@@ -4,7 +4,7 @@
  */
 
 // S3 bucket URL (same as admin panel)
-const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_BASE_URL || 'https://<your-s3-bucket>.s3.me-central-1.amazonaws.com';
+const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_BASE_URL || 'https://<your-s3-bucket>.s3.<your-region>.amazonaws.com';
 
 /**
  * Format image URL to use the S3 bucket path

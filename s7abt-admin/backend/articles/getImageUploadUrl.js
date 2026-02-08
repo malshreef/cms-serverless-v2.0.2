@@ -3,7 +3,7 @@ const response = require('./shared/response');
 const { v4: uuidv4 } = require('uuid');
 
 const s3 = new AWS.S3({
-  region: process.env.AWS_REGION || 'me-central-1',
+  region: process.env.AWS_REGION,
   signatureVersion: 'v4'
 });
 
@@ -55,7 +55,7 @@ exports.handler = async (event) => {
     });
 
     // Generate the public URL for accessing the file after upload
-    const publicUrl = `https://${bucketName}.s3.${process.env.AWS_REGION || 'me-central-1'}.amazonaws.com/${s3Key}`;
+    const publicUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 
     return response.success({
       uploadUrl: presignedUrl,

@@ -17,8 +17,15 @@ async function getDbCredentials() {
     return secretCache;
   }
 
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'me-central-1' });
-  const secretName = process.env.DB_SECRET_NAME || 's7abt/database/credentials-dubai';
+  const region = process.env.AWS_REGION;
+  if (!region) {
+    throw new Error('AWS_REGION environment variable is not set');
+  }
+  const client = new SecretsManagerClient({ region });
+  const secretName = process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME;
+  if (!secretName) {
+    throw new Error('DB_SECRET_ARN or DB_SECRET_NAME environment variable is required');
+  }
 
   try {
     const response = await client.send(
@@ -42,20 +49,24 @@ async function getDbCredentials() {
 
 /**
  * Get or create database connection pool
+ * Pool is reused across Lambda invocations (warm starts)
  */
 async function getPool() {
+  // Return existing pool if available
   if (pool) {
     return pool;
   }
 
   const credentials = await getDbCredentials();
 
+  // Create connection pool with optimized settings
+  // Support both 'dbname' and 'database' field names
   pool = mysql.createPool({
     host: credentials.host,
     port: credentials.port || 3306,
     user: credentials.username,
     password: credentials.password,
-    database: credentials.dbname || credentials.database || 's7abt_dubai',
+    database: credentials.dbname || credentials.database,
     charset: 'utf8mb4',
     waitForConnections: true,
     connectionLimit: 2,
@@ -64,10 +75,10 @@ async function getPool() {
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
-    connectTimeout: 10000,
-    acquireTimeout: 10000,
+    connectTimeout: 10000
   });
 
+  // Handle pool errors
   pool.on('error', (err) => {
     console.error('Database pool error:', err);
     if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
@@ -79,13 +90,30 @@ async function getPool() {
 }
 
 /**
- * Execute a query
+ * Execute a query with automatic connection management
  */
 async function query(sql, params = []) {
   const pool = await getPool();
 
   try {
     const [rows] = await pool.execute(sql, params);
+    return rows;
+  } catch (error) {
+    console.error('Query error:', error);
+    console.error('SQL:', sql);
+    console.error('Params:', params);
+    throw error;
+  }
+}
+
+/**
+ * Execute a query with .query() method (supports dynamic SQL with LIMIT/OFFSET)
+ */
+async function rawQuery(sql, params = []) {
+  const pool = await getPool();
+
+  try {
+    const [rows] = await pool.query(sql, params);
     return rows;
   } catch (error) {
     console.error('Query error:', error);
@@ -104,7 +132,7 @@ async function queryOne(sql, params = []) {
 }
 
 /**
- * Get a connection for transactions
+ * Get a connection from the pool for transactions
  */
 async function getConnection() {
   const pool = await getPool();
@@ -121,7 +149,7 @@ async function beginTransaction() {
 }
 
 /**
- * Close pool
+ * Close all connections in the pool
  */
 async function closePool() {
   if (pool) {
@@ -136,6 +164,7 @@ async function closePool() {
 
 module.exports = {
   query,
+  rawQuery,
   queryOne,
   getConnection,
   beginTransaction,

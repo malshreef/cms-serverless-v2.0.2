@@ -10,6 +10,7 @@
 
 # Sensitive data patterns
 *secret*
+!SECRETS-SETUP.md
 *credential*
 *password*.txt
 *password*.json
@@ -84,6 +85,9 @@ packaged.yaml
 **/*_events*.json
 **/s7abt_events*.json
 **/s7build/
+**/deploy_temp/
+**/lambda-deploy/
+**/*-deployment/
 
 # Temporary files
 tmp/

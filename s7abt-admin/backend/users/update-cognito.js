@@ -2,7 +2,7 @@ const { CognitoIdentityProviderClient, AdminUpdateUserAttributesCommand, AdminSe
 const db = require('./shared/db');
 const { success: successResponse, error: errorResponse } = require('./shared/response');
 
-const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'me-central-1' });
+const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION });
 const USER_POOL_ID = process.env.USER_POOL_ID;
 
 /**

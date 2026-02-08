@@ -11,21 +11,32 @@ Parameters:
       - staging
       - prod
     Description: Environment name
-  
+
   DatabaseSecretArn:
     Type: String
-    Description: ARN of the Secrets Manager secret containing database credentials
-    Default: arn:aws:secretsmanager:me-central-1:<your-aws-account-id>:secret:s7abt/database/<your-secret-name>
+    Description: ARN of the Secrets Manager secret containing database credentials (e.g. arn:aws:secretsmanager:REGION:ACCOUNT:secret:s7abt/database/credentials)
+
+  VpcSubnetIds:
+    Type: CommaDelimitedList
+    Description: Comma-separated list of VPC subnet IDs for Lambda functions (must have access to RDS)
+
+  VpcSecurityGroupIds:
+    Type: CommaDelimitedList
+    Description: Comma-separated list of security group IDs for Lambda functions (must allow outbound to RDS on port 3306)
 
 Globals:
   Function:
-    Runtime: nodejs18.x
+    Runtime: nodejs20.x
     Timeout: 30
     MemorySize: 256
+    VpcConfig:
+      SubnetIds: !Ref VpcSubnetIds
+      SecurityGroupIds: !Ref VpcSecurityGroupIds
     Environment:
       Variables:
         ENVIRONMENT: !Ref Environment
-        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        DB_SECRET_ARN: !Ref DatabaseSecretArn
+        DB_SECRET_NAME: !Ref DatabaseSecretArn
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
     Tags:
       Project: S7abt
@@ -92,6 +103,10 @@ Resources:
         - Name: email
           Required: true
           Mutable: false
+        - Name: role
+          AttributeDataType: String
+          Mutable: true
+          Required: false
       Policies:
         PasswordPolicy:
           MinimumLength: 8
@@ -127,6 +142,7 @@ Resources:
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
         - PolicyName: SecretsManagerAccess
           PolicyDocument:
@@ -470,7 +486,7 @@ Outputs:
   
   MediaBucketUrl:
     Description: S3 bucket URL for media access
-    Value: !GetAtt MediaBucket.WebsiteURL
+    Value: !Sub 'https://${MediaBucket}.s3.${AWS::Region}.amazonaws.com'
     Export:
       Name: !Sub ${AWS::StackName}-MediaBucketUrl
 

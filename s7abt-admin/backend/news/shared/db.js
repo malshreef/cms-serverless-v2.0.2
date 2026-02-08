@@ -1,135 +1,173 @@
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const mysql = require('mysql2/promise');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
-let cachedDbConfig = null;
-let cachedConnection = null;
+let pool = null;
+let secretCache = null;
+const SECRET_CACHE_TTL = 300000; // 5 minutes
+let secretCacheTime = 0;
 
-async function getDbConfig() {
-  if (cachedDbConfig) {
-    return cachedDbConfig;
+/**
+ * Get database credentials from AWS Secrets Manager with caching
+ */
+async function getDbCredentials() {
+  const now = Date.now();
+
+  // Return cached secret if still valid
+  if (secretCache && (now - secretCacheTime) < SECRET_CACHE_TTL) {
+    return secretCache;
   }
 
-  // Get secret ARN from either variable name
-  const secretArn = process.env.DB_SECRET_ARN || process.env.DATABASE_SECRET_ARN;
-
-  // Option 1: Use direct environment variables (for testing/development)
-  if (!secretArn) {
-    console.warn('⚠️  DB_SECRET_ARN/DATABASE_SECRET_ARN not set, using direct environment variables');
-    
-    const required = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-    const missing = required.filter(key => !process.env[key]);
-    
-    if (missing.length > 0) {
-      throw new Error(
-        `Missing required environment variables: ${missing.join(', ')}. ` +
-        `Either set DB_SECRET_ARN or set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME`
-      );
-    }
-
-    cachedDbConfig = {
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT) || 3306,
-      username: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME
-    };
-    
-    console.log(`✓ Using direct connection to ${cachedDbConfig.host}:${cachedDbConfig.port}/${cachedDbConfig.database}`);
-    return cachedDbConfig;
+  const region = process.env.AWS_REGION;
+  if (!region) {
+    throw new Error('AWS_REGION environment variable is not set');
   }
-
-  // Option 2: Use AWS Secrets Manager (recommended for production)
-  console.log('✓ Using AWS Secrets Manager for database credentials');
-  
-  // AWS_REGION is automatically set by Lambda runtime
-  const client = new SecretsManagerClient({
-    region: process.env.AWS_REGION
-  });
+  const client = new SecretsManagerClient({ region });
+  const secretName = process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME;
+  if (!secretName) {
+    throw new Error('DB_SECRET_ARN or DB_SECRET_NAME environment variable is required');
+  }
 
   try {
     const response = await client.send(
       new GetSecretValueCommand({
-        SecretId: secretArn
+        SecretId: secretName,
       })
     );
 
-    cachedDbConfig = JSON.parse(response.SecretString);
-    console.log(`✓ Retrieved credentials from Secrets Manager`);
-    return cachedDbConfig;
+    const secret = JSON.parse(response.SecretString);
+
+    // Cache the secret
+    secretCache = secret;
+    secretCacheTime = now;
+
+    return secret;
   } catch (error) {
-    console.error('❌ Error fetching database credentials from Secrets Manager:', error);
-    throw new Error(
-      `Failed to get database credentials: ${error.message}. ` +
-      `Make sure DB_SECRET_ARN is correct and Lambda has Secrets Manager permissions.`
-    );
-  }
-}
-
-async function getConnection() {
-  if (cachedConnection) {
-    try {
-      await cachedConnection.ping();
-      return cachedConnection;
-    } catch (error) {
-      console.log('Connection lost, reconnecting...');
-      cachedConnection = null;
-    }
-  }
-
-  const dbConfig = await getDbConfig();
-
-  try {
-    cachedConnection = await mysql.createConnection({
-      host: dbConfig.host,
-      port: dbConfig.port || 3306,
-      user: dbConfig.username || dbConfig.user,
-      password: dbConfig.password,
-      database: dbConfig.dbname || dbConfig.database || 's7abt_dubai',
-      charset: 'utf8mb4',
-      connectTimeout: 10000
-    });
-
-    console.log('✓ Database connection established');
-    return cachedConnection;
-  } catch (error) {
-    console.error('❌ Error connecting to database:', error);
-    throw new Error(
-      `Database connection failed: ${error.message}. ` +
-      `Check database host, credentials, and security groups.`
-    );
+    console.error('Error fetching database credentials:', error);
+    throw error;
   }
 }
 
 /**
- * Execute a query and return all results
+ * Get or create database connection pool
+ * Pool is reused across Lambda invocations (warm starts)
+ */
+async function getPool() {
+  // Return existing pool if available
+  if (pool) {
+    return pool;
+  }
+
+  const credentials = await getDbCredentials();
+
+  // Create connection pool with optimized settings
+  // Support both 'dbname' and 'database' field names
+  pool = mysql.createPool({
+    host: credentials.host,
+    port: credentials.port || 3306,
+    user: credentials.username,
+    password: credentials.password,
+    database: credentials.dbname || credentials.database,
+    charset: 'utf8mb4',
+    waitForConnections: true,
+    connectionLimit: 2,
+    maxIdle: 2,
+    idleTimeout: 60000,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    connectTimeout: 10000
+  });
+
+  // Handle pool errors
+  pool.on('error', (err) => {
+    console.error('Database pool error:', err);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
+      pool = null;
+    }
+  });
+
+  return pool;
+}
+
+/**
+ * Execute a query with automatic connection management
  */
 async function query(sql, params = []) {
+  const pool = await getPool();
+
   try {
-    const connection = await getConnection();
-    const [rows] = await connection.query(sql, params);
+    const [rows] = await pool.execute(sql, params);
     return rows;
   } catch (error) {
-    console.error('❌ Query error:', error);
+    console.error('Query error:', error);
+    console.error('SQL:', sql);
+    console.error('Params:', params);
     throw error;
   }
 }
 
 /**
- * Execute a query and return the first result
+ * Execute a query with .query() method (supports dynamic SQL with LIMIT/OFFSET)
+ */
+async function rawQuery(sql, params = []) {
+  const pool = await getPool();
+
+  try {
+    const [rows] = await pool.query(sql, params);
+    return rows;
+  } catch (error) {
+    console.error('Query error:', error);
+    console.error('SQL:', sql);
+    console.error('Params:', params);
+    throw error;
+  }
+}
+
+/**
+ * Execute a query and return only the first row
  */
 async function queryOne(sql, params = []) {
-  try {
-    const connection = await getConnection();
-    const [rows] = await connection.query(sql, params);
-    return rows.length > 0 ? rows[0] : null;
-  } catch (error) {
-    console.error('❌ QueryOne error:', error);
-    throw error;
+  const rows = await query(sql, params);
+  return rows.length > 0 ? rows[0] : null;
+}
+
+/**
+ * Get a connection from the pool for transactions
+ */
+async function getConnection() {
+  const pool = await getPool();
+  return await pool.getConnection();
+}
+
+/**
+ * Begin a database transaction
+ */
+async function beginTransaction() {
+  const connection = await getConnection();
+  await connection.beginTransaction();
+  return connection;
+}
+
+/**
+ * Close all connections in the pool
+ */
+async function closePool() {
+  if (pool) {
+    try {
+      await pool.end();
+      pool = null;
+    } catch (error) {
+      console.error('Error closing pool:', error);
+    }
   }
 }
 
 module.exports = {
-  getConnection,
   query,
-  queryOne
+  rawQuery,
+  queryOne,
+  getConnection,
+  beginTransaction,
+  closePool,
+  getPool
 };

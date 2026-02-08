@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // --- Configuration ---
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com';
-const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com';
+const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com';
 
 // --- Axios Clients ---
 const apiClient = axios.create({
@@ -498,7 +498,7 @@ export const writersApi = {
       console.log('Fetching top writers...');
 
       // Use the dedicated GetTopWriters Lambda endpoint
-      const WRITERS_API_URL = 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com/default/s7abt-GetTopWriters';
+      const WRITERS_API_URL = 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com/default/s7abt-GetTopWriters';
 
       const response = await axios.get(WRITERS_API_URL);
       const data = response.data;

@@ -1,79 +1,173 @@
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const mysql = require('mysql2/promise');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
-let cachedDbConfig = null;
-let cachedConnection = null;
+let pool = null;
+let secretCache = null;
+const SECRET_CACHE_TTL = 300000; // 5 minutes
+let secretCacheTime = 0;
 
-async function getDbConfig() {
-  if (cachedDbConfig) {
-    return cachedDbConfig;
+/**
+ * Get database credentials from AWS Secrets Manager with caching
+ */
+async function getDbCredentials() {
+  const now = Date.now();
+
+  // Return cached secret if still valid
+  if (secretCache && (now - secretCacheTime) < SECRET_CACHE_TTL) {
+    return secretCache;
   }
 
-  // Get secret ARN from either variable name
-  const secretArn = process.env.DB_SECRET_ARN || process.env.DATABASE_SECRET_ARN;
-
-  if (!secretArn) {
-    throw new Error('Missing DB_SECRET_ARN or DATABASE_SECRET_ARN environment variable');
+  const region = process.env.AWS_REGION;
+  if (!region) {
+    throw new Error('AWS_REGION environment variable is not set');
   }
-
-  const client = new SecretsManagerClient({
-    region: process.env.AWS_REGION
-  });
+  const client = new SecretsManagerClient({ region });
+  const secretName = process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME;
+  if (!secretName) {
+    throw new Error('DB_SECRET_ARN or DB_SECRET_NAME environment variable is required');
+  }
 
   try {
     const response = await client.send(
       new GetSecretValueCommand({
-        SecretId: secretArn
+        SecretId: secretName,
       })
     );
 
-    cachedDbConfig = JSON.parse(response.SecretString);
-    return cachedDbConfig;
+    const secret = JSON.parse(response.SecretString);
+
+    // Cache the secret
+    secretCache = secret;
+    secretCacheTime = now;
+
+    return secret;
   } catch (error) {
     console.error('Error fetching database credentials:', error);
     throw error;
   }
 }
 
-async function getConnection() {
-  if (cachedConnection) {
-    return cachedConnection;
+/**
+ * Get or create database connection pool
+ * Pool is reused across Lambda invocations (warm starts)
+ */
+async function getPool() {
+  // Return existing pool if available
+  if (pool) {
+    return pool;
   }
 
-  const dbConfig = await getDbConfig();
+  const credentials = await getDbCredentials();
 
-  cachedConnection = await mysql.createConnection({
-    host: dbConfig.host,
-    port: dbConfig.port,
-    user: dbConfig.username,
-    password: dbConfig.password,
-    database: dbConfig.dbname || dbConfig.database || 's7abt_dubai',
-    charset: 'utf8mb4'
+  // Create connection pool with optimized settings
+  // Support both 'dbname' and 'database' field names
+  pool = mysql.createPool({
+    host: credentials.host,
+    port: credentials.port || 3306,
+    user: credentials.username,
+    password: credentials.password,
+    database: credentials.dbname || credentials.database,
+    charset: 'utf8mb4',
+    waitForConnections: true,
+    connectionLimit: 2,
+    maxIdle: 2,
+    idleTimeout: 60000,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    connectTimeout: 10000
   });
 
-  return cachedConnection;
+  // Handle pool errors
+  pool.on('error', (err) => {
+    console.error('Database pool error:', err);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
+      pool = null;
+    }
+  });
+
+  return pool;
 }
 
 /**
- * Execute a query and return all results
+ * Execute a query with automatic connection management
  */
 async function query(sql, params = []) {
-  const connection = await getConnection();
-  const [rows] = await connection.query(sql, params);
-  return rows;
+  const pool = await getPool();
+
+  try {
+    const [rows] = await pool.execute(sql, params);
+    return rows;
+  } catch (error) {
+    console.error('Query error:', error);
+    console.error('SQL:', sql);
+    console.error('Params:', params);
+    throw error;
+  }
 }
 
 /**
- * Execute a query and return the first result
+ * Execute a query with .query() method (supports dynamic SQL with LIMIT/OFFSET)
+ */
+async function rawQuery(sql, params = []) {
+  const pool = await getPool();
+
+  try {
+    const [rows] = await pool.query(sql, params);
+    return rows;
+  } catch (error) {
+    console.error('Query error:', error);
+    console.error('SQL:', sql);
+    console.error('Params:', params);
+    throw error;
+  }
+}
+
+/**
+ * Execute a query and return only the first row
  */
 async function queryOne(sql, params = []) {
-  const connection = await getConnection();
-  const [rows] = await connection.query(sql, params);
+  const rows = await query(sql, params);
   return rows.length > 0 ? rows[0] : null;
 }
 
+/**
+ * Get a connection from the pool for transactions
+ */
+async function getConnection() {
+  const pool = await getPool();
+  return await pool.getConnection();
+}
+
+/**
+ * Begin a database transaction
+ */
+async function beginTransaction() {
+  const connection = await getConnection();
+  await connection.beginTransaction();
+  return connection;
+}
+
+/**
+ * Close all connections in the pool
+ */
+async function closePool() {
+  if (pool) {
+    try {
+      await pool.end();
+      pool = null;
+    } catch (error) {
+      console.error('Error closing pool:', error);
+    }
+  }
+}
+
 module.exports = {
-  getConnection,
   query,
-  queryOne
+  rawQuery,
+  queryOne,
+  getConnection,
+  beginTransaction,
+  closePool,
+  getPool
 };

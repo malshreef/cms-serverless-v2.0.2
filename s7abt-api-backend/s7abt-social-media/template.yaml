@@ -23,13 +23,13 @@ Parameters:
   
   S7abtApiUrl:
     Type: String
-    Default: https://<your-api-id>.execute-api.me-central-1.amazonaws.com/dev
+    Default: https://<your-api-id>.execute-api.<your-region>.amazonaws.com/dev
     Description: URL of the S7abt blog API
 
 Globals:
   Function:
     Timeout: 300
-    Runtime: nodejs18.x
+    Runtime: nodejs20.x
     MemorySize: 512
     Environment:
       Variables:

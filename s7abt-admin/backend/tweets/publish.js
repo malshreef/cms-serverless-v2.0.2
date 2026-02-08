@@ -2,7 +2,10 @@ const { query, queryOne } = require('./shared/db');
 const { success, error, notFound } = require('./shared/response');
 const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 
-const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION || 'us-east-1' });
+if (!process.env.AWS_REGION) {
+  throw new Error('AWS_REGION environment variable is not set');
+}
+const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
 const TWITTER_FUNCTION_NAME = process.env.TWITTER_FUNCTION_NAME || 's7abt-admin-twitter-publish-prod';
 
 /**

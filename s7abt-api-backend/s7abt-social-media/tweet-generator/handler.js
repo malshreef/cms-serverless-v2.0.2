@@ -187,7 +187,10 @@ async function storeTweets(tweets, articleId, articleUrl, articleTitle) {
  */
 async function fetchArticleContent(articleId) {
   // This would call your existing S7abt API to get article details
-  const apiUrl = process.env.S7ABT_API_URL || 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com/dev';
+  const apiUrl = process.env.S7ABT_API_URL;
+  if (!apiUrl) {
+    throw new Error('S7ABT_API_URL environment variable is required');
+  }
   
   try {
     const response = await fetch(`${apiUrl}/articles/${articleId}`);

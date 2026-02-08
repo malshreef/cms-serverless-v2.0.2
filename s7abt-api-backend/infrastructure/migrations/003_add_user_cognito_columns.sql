@@ -4,7 +4,7 @@
 -- Description: Adds email, role, cognito_id and deleted_at columns
 -- =====================================================
 
-USE s7abt_dubai;
+USE s7abt;
 
 -- Add email column (copy from username initially if needed)
 ALTER TABLE s7b_user
