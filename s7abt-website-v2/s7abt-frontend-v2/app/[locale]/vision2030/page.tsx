@@ -20,7 +20,7 @@ export default async function Vision2030Page({ params }: Vision2030PageProps) {
   
   try {
     // Search for articles with Vision 2030 tags using the new dedicated Tags API
-    const tags = ['vision2030', 'رؤية-السعودية-2030', 'رؤية-2030', 'vision-2030'];
+    const tags = ['Vision 2030', 'vision2030', 'رؤية-السعودية-2030', 'رؤية-2030', 'vision-2030'];
     
     console.log('Vision 2030 Page: Fetching articles with tags:', tags);
     
