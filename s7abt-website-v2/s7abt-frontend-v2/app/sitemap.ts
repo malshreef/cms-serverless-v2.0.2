@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://s7abt-dubai.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://s7abt.com';
 
 // Supported locales
 const locales = ['ar', 'en'];

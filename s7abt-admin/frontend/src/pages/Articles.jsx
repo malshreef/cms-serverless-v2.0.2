@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const Articles = () => {
   const navigate = useNavigate();
-  const { user, permissions } = useAuth();
+  const { permissions } = useAuth();
   const [articles, setArticles] = useState([]);
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -273,7 +273,7 @@ const Articles = () => {
                           >
                             <Eye className="w-4 h-4 text-muted-blue" />
                           </button>
-                          {permissions.canOnResource('articles', 'update', article.userId, user?.userId) && (
+                          {permissions.canOnResource('articles', 'update', article.author?.id) && (
                             <button
                               onClick={() => navigate(`/articles/${article.id}/edit`)}
                               className="p-2 hover:bg-sky-bg rounded-lg transition"
@@ -282,7 +282,7 @@ const Articles = () => {
                               <Edit className="w-4 h-4 text-sky-cta" />
                             </button>
                           )}
-                          {permissions.canOnResource('articles', 'delete', article.userId, user?.userId) && (
+                          {permissions.canOnResource('articles', 'delete', article.author?.id) && (
                             <button
                               onClick={() => handleDelete(article.id, article.title)}
                               className="p-2 hover:bg-red-50 rounded-lg transition"

@@ -8,8 +8,8 @@ export default createMiddleware({
   // Used when no locale matches
   defaultLocale: 'ar',
   
-  // Locale detection based on browser preferences
-  localeDetection: true,
+  // Always default to Arabic regardless of browser language
+  localeDetection: false,
 });
 
 export const config = {

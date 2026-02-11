@@ -3,6 +3,15 @@ frontend:
   phases:
     preBuild:
       commands:
+        - echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" > .env.production
+        - echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL" >> .env.production
+        - echo "NEXT_PUBLIC_TAGS_API_URL=$NEXT_PUBLIC_TAGS_API_URL" >> .env.production
+        - echo "NEXT_PUBLIC_S3_BASE_URL=$NEXT_PUBLIC_S3_BASE_URL" >> .env.production
+        - echo "NEXT_PUBLIC_SEARCH_API_URL=$NEXT_PUBLIC_SEARCH_API_URL" >> .env.production
+        - echo "NEXT_PUBLIC_CONTACT_API_URL=$NEXT_PUBLIC_CONTACT_API_URL" >> .env.production
+        - echo "MAILERLITE_API_KEY=$MAILERLITE_API_KEY" >> .env.production
+        - echo "CONTACT_LAMBDA_URL=$CONTACT_LAMBDA_URL" >> .env.production
+        - cat .env.production
         - npm ci
     build:
       commands:

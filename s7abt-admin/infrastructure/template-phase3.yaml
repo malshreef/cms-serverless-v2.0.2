@@ -231,7 +231,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles
+            Path: /admin/articles
             Method: get
 
   GetArticleFunction:
@@ -246,7 +246,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/{id}
+            Path: /admin/articles/{id}
             Method: get
 
   CreateArticleFunction:
@@ -261,7 +261,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles
+            Path: /admin/articles
             Method: post
 
   UpdateArticleFunction:
@@ -276,7 +276,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/{id}
+            Path: /admin/articles/{id}
             Method: put
 
   DeleteArticleFunction:
@@ -291,7 +291,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/{id}
+            Path: /admin/articles/{id}
             Method: delete
 
   GetImageUploadUrlFunction:
@@ -309,7 +309,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /articles/image-upload-url
+            Path: /admin/articles/image-upload-url
             Method: post
 
   # ========================================
@@ -328,7 +328,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections
+            Path: /admin/sections
             Method: get
 
   CreateSectionFunction:
@@ -343,7 +343,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections
+            Path: /admin/sections
             Method: post
 
   UpdateSectionFunction:
@@ -358,7 +358,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections/{id}
+            Path: /admin/sections/{id}
             Method: put
 
   DeleteSectionFunction:
@@ -373,7 +373,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /sections/{id}
+            Path: /admin/sections/{id}
             Method: delete
 
   # ========================================
@@ -392,7 +392,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags
+            Path: /admin/tags
             Method: get
 
   CreateTagFunction:
@@ -407,7 +407,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags
+            Path: /admin/tags
             Method: post
 
   UpdateTagFunction:
@@ -422,7 +422,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags/{id}
+            Path: /admin/tags/{id}
             Method: put
 
   DeleteTagFunction:
@@ -437,7 +437,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /tags/{id}
+            Path: /admin/tags/{id}
             Method: delete
 
   # ========================================
@@ -455,6 +455,7 @@ Resources:
         AllowOrigin: "'*'"
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt UserPool.Arn

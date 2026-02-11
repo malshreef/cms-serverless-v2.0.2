@@ -51,6 +51,8 @@ export const AuthProvider = ({ children }) => {
         familyName: attributes.family_name || null,
         // Add role from custom attributes
         role: attributes['custom:role'] || 'viewer',
+        // Database user ID for ownership checks
+        dbUserId: attributes['custom:dbId'] ? parseInt(attributes['custom:dbId'], 10) : null,
       });
     } catch (err) {
       setUser(null);
@@ -138,7 +140,7 @@ export const AuthProvider = ({ children }) => {
 
       // Check if user can perform action on a specific resource (with ownership)
       canOnResource: (resource, action, resourceOwnerId, currentUserId) =>
-        canPerformOnResource(role, resource, action, resourceOwnerId, currentUserId || user?.userId),
+        canPerformOnResource(role, resource, action, resourceOwnerId, currentUserId || user?.dbUserId),
 
       // Check if user can publish content
       canPublish: (resource) => canPublish(role, resource),
@@ -155,7 +157,7 @@ export const AuthProvider = ({ children }) => {
       // Get role display name
       getRoleDisplayName: () => getRoleDisplayName(role),
     };
-  }, [user?.role, user?.userId]);
+  }, [user?.role, user?.dbUserId]);
 
   const value = {
     user,

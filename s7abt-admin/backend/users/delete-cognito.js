@@ -41,7 +41,7 @@ exports.handler = async (event) => {
           s7b_user_role as role,
           s7b_user_cognito_id as cognitoId
         FROM s7b_user 
-        WHERE s7b_user_id = ? AND s7b_user_deleted_at IS NULL`,
+        WHERE s7b_user_id = ? AND s7b_user_active = 1`,
         [userId]
       );
 
@@ -59,7 +59,7 @@ exports.handler = async (event) => {
       // Check if this is the last admin
       if (userToDelete.role === 'admin') {
         const [adminCount] = await connection.query(
-          'SELECT COUNT(*) as count FROM s7b_user WHERE s7b_user_role = ? AND s7b_user_deleted_at IS NULL',
+          'SELECT COUNT(*) as count FROM s7b_user WHERE s7b_user_role = ? AND s7b_user_active = 1',
           ['admin']
         );
 
@@ -109,7 +109,7 @@ exports.handler = async (event) => {
       // Step 2: Soft delete from database
       console.log('Soft deleting user from database...');
       await connection.query(
-        'UPDATE s7b_user SET s7b_user_deleted_at = NOW() WHERE s7b_user_id = ?',
+        'UPDATE s7b_user SET s7b_user_active = 0 WHERE s7b_user_id = ?',
         [userId]
       );
 

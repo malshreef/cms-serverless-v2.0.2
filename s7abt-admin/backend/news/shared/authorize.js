@@ -95,10 +95,10 @@ async function getUserDbId(email) {
   const normalizedEmail = email.trim().toLowerCase();
   console.log('getUserDbId: Looking up user with email:', normalizedEmail);
 
-  // Use LOWER() for case-insensitive comparison
+  // Search by email first, fall back to cognitoId (handles Cognito email != DB email)
   const user = await db.queryOne(
-    'SELECT s7b_user_id, s7b_user_email FROM s7b_user WHERE LOWER(TRIM(s7b_user_email)) = ? AND s7b_user_deleted_at IS NULL',
-    [normalizedEmail]
+    'SELECT s7b_user_id, s7b_user_email FROM s7b_user WHERE LOWER(TRIM(s7b_user_email)) = ? OR LOWER(TRIM(s7b_user_cognito_id)) = ? LIMIT 1',
+    [normalizedEmail, normalizedEmail]
   );
 
   console.log('getUserDbId: Found user:', user ? { id: user.s7b_user_id, email: user.s7b_user_email } : null);

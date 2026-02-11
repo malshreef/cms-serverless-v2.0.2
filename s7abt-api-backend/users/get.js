@@ -1,26 +1,21 @@
-const { getConnection } = require('../shared/db');
+const db = require('../shared/db');
 const { success, error } = require('../shared/response');
 
 exports.handler = async (event) => {
   console.log('Event:', JSON.stringify(event));
-  
-  let connection;
-  
+
   try {
     // Get user ID from path parameters
     const userId = event.pathParameters?.id;
-    
+
     if (!userId) {
       return error('User ID is required', 400);
     }
-    
-    // Get database connection
-    connection = await getConnection();
-    
+
     // Get user details (excluding password)
-    const [userResult] = await connection.execute(
+    const userResult = await db.query(
       `
-      SELECT 
+      SELECT
         s7b_user_id as id,
         s7b_user_username as username,
         s7b_user_name as name,
@@ -35,35 +30,31 @@ exports.handler = async (event) => {
       `,
       [userId]
     );
-    
+
     if (userResult.length === 0) {
       return error('User not found', 404);
     }
-    
+
     const user = userResult[0];
-    
+
     // Get user's articles count
-    const [articlesCount] = await connection.execute(
-      'SELECT COUNT(*) as total FROM s7b_article WHERE s7b_user_id = ? AND s7b_article_active = 1',
+    const articlesCount = await db.query(
+      'SELECT COUNT(*) as total FROM s7b_article WHERE s7b_user_id = ? AND s7b_article_active = 1 AND s7b_article_deleted_at IS NULL',
       [userId]
     );
     user.articlesCount = articlesCount[0].total;
-    
+
     // Get user's news count
-    const [newsCount] = await connection.execute(
-      'SELECT COUNT(*) as total FROM s7b_news WHERE s7b_user_id = ? AND s7b_news_active = 1',
+    const newsCount = await db.query(
+      'SELECT COUNT(*) as total FROM s7b_news WHERE s7b_user_id = ? AND s7b_news_active = 1 AND s7b_news_deleted_at IS NULL',
       [userId]
     );
     user.newsCount = newsCount[0].total;
-    
+
     return success({ user });
-    
+
   } catch (err) {
     console.error('Error:', err);
     return error('Failed to fetch user', 500, err.message);
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 };

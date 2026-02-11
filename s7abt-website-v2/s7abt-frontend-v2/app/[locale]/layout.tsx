@@ -3,7 +3,10 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { locales } from '@/i18n';
 import { Inter, Poppins, Readex_Pro } from 'next/font/google';
+import Script from 'next/script';
 import '../globals.css';
+
+const GA_MEASUREMENT_ID = 'G-VT3EMK87J6';
 
 // English fonts
 const inter = Inter({
@@ -58,6 +61,18 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} dir={direction} className={fontClasses}>
       <head>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"

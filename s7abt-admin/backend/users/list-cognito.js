@@ -28,8 +28,8 @@ exports.handler = async (event) => {
     const limitNum = parseInt(limit, 10);
     const offset = (pageNum - 1) * limitNum;
 
-    // Build WHERE clause
-    const conditions = ['s7b_user_deleted_at IS NULL'];
+    // Build WHERE clause (s7b_user table has no deleted_at column)
+    const conditions = ['1=1'];
     const values = [];
 
     if (role) {
@@ -50,68 +50,60 @@ exports.handler = async (event) => {
 
     const whereClause = conditions.join(' AND ');
 
-    const connection = await db.getConnection();
+    // Get total count
+    const countResult = await db.queryOne(
+      `SELECT COUNT(*) as total FROM s7b_user WHERE ${whereClause}`,
+      values
+    );
+    const total = countResult.total;
 
-    try {
-      // Get total count
-      const [countResult] = await connection.query(
-        `SELECT COUNT(*) as total FROM s7b_user WHERE ${whereClause}`,
-        values
+    // Get users with LIMIT/OFFSET (use rawQuery for dynamic SQL)
+    const users = await db.rawQuery(
+      `SELECT
+        s7b_user_id as id,
+        s7b_user_email as email,
+        s7b_user_name as name,
+        s7b_user_brief as brief,
+        s7b_user_role as role,
+        s7b_user_active as active,
+        s7b_user_image as image,
+        s7b_user_twitter as twitter,
+        s7b_user_facebook as facebook,
+        s7b_user_linkedin as linkedin,
+        s7b_user_cognito_id as cognitoId,
+        s7b_user_created_at as createdAt
+      FROM s7b_user
+      WHERE ${whereClause}
+      ORDER BY s7b_user_created_at DESC
+      LIMIT ? OFFSET ?`,
+      [...values, limitNum, offset]
+    );
+
+    // Get article and news counts for each user
+    for (const user of users) {
+      const articleCount = await db.queryOne(
+        'SELECT COUNT(*) as count FROM s7b_article WHERE s7b_user_id = ? AND s7b_article_deleted_at IS NULL',
+        [user.id]
       );
 
-      const total = countResult[0].total;
-
-      // Get users (LIMIT/OFFSET as strings for mysql2 prepared statement compatibility)
-      const [users] = await connection.query(
-        `SELECT
-          s7b_user_id as id,
-          s7b_user_email as email,
-          s7b_user_name as name,
-          s7b_user_brief as brief,
-          s7b_user_role as role,
-          s7b_user_active as active,
-          s7b_user_image as image,
-          s7b_user_twitter as twitter,
-          s7b_user_facebook as facebook,
-          s7b_user_linkedin as linkedin,
-          s7b_user_cognito_id as cognitoId,
-          s7b_user_created_at as createdAt
-        FROM s7b_user
-        WHERE ${whereClause}
-        ORDER BY s7b_user_created_at DESC
-        LIMIT ? OFFSET ?`,
-        [...values, String(limitNum), String(offset)]
+      const newsCount = await db.queryOne(
+        'SELECT COUNT(*) as count FROM s7b_news WHERE s7b_user_id = ? AND s7b_news_deleted_at IS NULL',
+        [user.id]
       );
 
-      // Get article and news counts for each user
-      for (const user of users) {
-        const [articleCount] = await connection.query(
-          'SELECT COUNT(*) as count FROM s7b_article WHERE s7b_user_id = ? AND s7b_article_deleted_at IS NULL',
-          [user.id]
-        );
-
-        const [newsCount] = await connection.query(
-          'SELECT COUNT(*) as count FROM s7b_news WHERE s7b_user_id = ? AND s7b_news_deleted_at IS NULL',
-          [user.id]
-        );
-
-        user.articleCount = articleCount[0].count;
-        user.newsCount = newsCount[0].count;
-      }
-
-      return successResponse({
-        users,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
-
-    } finally {
-      connection.release();
+      user.articleCount = articleCount.count;
+      user.newsCount = newsCount.count;
     }
+
+    return successResponse({
+      users,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
 
   } catch (error) {
     console.error('Error listing users:', error);

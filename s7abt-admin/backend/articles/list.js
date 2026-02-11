@@ -1,5 +1,5 @@
-const db = require('../shared/db');
-const response = require('../shared/response');
+const db = require('./shared/db');
+const response = require('./shared/response');
 
 /**
  * List all articles with pagination and filtering
@@ -91,7 +91,7 @@ exports.handler = async (event) => {
     `;
 
     queryParams.push(limit, offset);
-    const articles = await db.query(sql, queryParams);
+    const articles = await db.rawQuery(sql, queryParams);
 
     // Format the response
     const formattedArticles = articles.map(article => ({

@@ -97,7 +97,7 @@ async function getUserDbId(email) {
 
   // Use LOWER() for case-insensitive comparison
   const user = await db.queryOne(
-    'SELECT s7b_user_id, s7b_user_email FROM s7b_user WHERE LOWER(TRIM(s7b_user_email)) = ? AND s7b_user_deleted_at IS NULL',
+    'SELECT s7b_user_id, s7b_user_email FROM s7b_user WHERE LOWER(TRIM(s7b_user_email)) = ?',
     [normalizedEmail]
   );
 

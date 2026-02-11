@@ -1,5 +1,5 @@
 const config = {
-  locales: ['en', 'ar'],
+  locales: ['ar', 'en'],
   defaultLocale: 'ar',
 };
 

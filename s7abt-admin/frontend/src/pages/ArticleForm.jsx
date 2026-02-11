@@ -5,13 +5,13 @@ import ImageUpload from '../components/ImageUpload';
 import RichTextEditor from '../components/RichTextEditor';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { canPublish } from '../lib/permissions';
+import { canPublish, isOwnershipBased } from '../lib/permissions';
 
 const ArticleForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const userCanPublish = canPublish(user?.role, 'articles');
 
   const [loading, setLoading] = useState(false);
@@ -66,7 +66,17 @@ const ArticleForm = () => {
       setLoading(true);
       const response = await articlesAPI.get(id);
       const article = response.data.data;
-      
+
+      // Ownership check: content_specialist can only edit their own articles
+      if (isOwnershipBased(user?.role, 'articles', 'update')) {
+        const articleOwnerId = article.author?.id;
+        if (String(articleOwnerId) !== String(user?.dbUserId)) {
+          setError('ليس لديك صلاحية تعديل هذا المقال');
+          navigate('/articles');
+          return;
+        }
+      }
+
       // Handle mainImage - filter out "no-image.png" default placeholder
       let imageKey = article.mainImage || '';
       if (imageKey === 'no-image.png') {

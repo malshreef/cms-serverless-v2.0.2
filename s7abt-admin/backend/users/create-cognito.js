@@ -67,7 +67,7 @@ exports.handler = async (event) => {
     try {
       // Check if email already exists in database
       const [existingUsers] = await connection.query(
-        'SELECT s7b_user_id FROM s7b_user WHERE s7b_user_email = ? AND s7b_user_deleted_at IS NULL',
+        'SELECT s7b_user_id FROM s7b_user WHERE s7b_user_email = ? AND s7b_user_active = 1',
         [email]
       );
 

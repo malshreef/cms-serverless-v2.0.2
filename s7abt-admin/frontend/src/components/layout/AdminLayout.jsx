@@ -157,7 +157,7 @@ const AdminLayout = () => {
       </div>
 
       {/* Main Content */}
-      <div className="mr-64 mt-16 p-8">
+      <div className="mr-64 mt-16 p-8 pb-20">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-cta"></div>
@@ -167,6 +167,13 @@ const AdminLayout = () => {
         ) : (
           <Outlet />
         )}
+      </div>
+
+      {/* Footer */}
+      <div className="mr-64 border-t border-border-blue bg-cloud-white py-4 px-8 text-center">
+        <p className="text-muted-blue text-xs font-rubik">
+          Developed with Love by M.alshreef@gmail.com and Claude.ai
+        </p>
       </div>
     </div>
   );

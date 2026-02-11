@@ -161,30 +161,40 @@ CREATE TABLE IF NOT EXISTS s7b_comment (
 
 -- Tweets Table (AI-generated tweet queue for social media automation)
 CREATE TABLE IF NOT EXISTS s7b_tweets (
-    s7b_tweet_id INT(11) NOT NULL AUTO_INCREMENT,
+    s7b_tweet_id VARCHAR(36) NOT NULL,
     s7b_article_id INT(11) DEFAULT NULL,
     s7b_tweet_text VARCHAR(300) NOT NULL,
     s7b_tweet_tone VARCHAR(50) DEFAULT NULL,
-    s7b_tweet_hashtags VARCHAR(300) DEFAULT NULL,
+    s7b_tweet_hashtags TEXT DEFAULT NULL,
+    s7b_tweet_sequence INT DEFAULT NULL,
+    s7b_tweet_total_in_batch INT DEFAULT NULL,
     s7b_tweet_status ENUM('pending', 'scheduled', 'posted', 'failed') DEFAULT 'pending',
-    s7b_tweet_scheduled_at DATETIME DEFAULT NULL,
-    s7b_tweet_posted_at DATETIME DEFAULT NULL,
+    s7b_tweet_scheduled_time DATETIME DEFAULT NULL,
+    s7b_tweet_posted_time DATETIME DEFAULT NULL,
     s7b_tweet_twitter_id VARCHAR(100) DEFAULT NULL,
     s7b_tweet_twitter_url VARCHAR(300) DEFAULT NULL,
-    s7b_tweet_error TEXT DEFAULT NULL,
+    s7b_tweet_error_message TEXT DEFAULT NULL,
+    s7b_article_title VARCHAR(500) DEFAULT NULL,
+    s7b_article_url VARCHAR(500) DEFAULT NULL,
+    s7b_tweet_likes INT DEFAULT 0,
+    s7b_tweet_retweets INT DEFAULT 0,
+    s7b_tweet_replies INT DEFAULT 0,
+    s7b_tweet_impressions INT DEFAULT 0,
     s7b_tweet_created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     s7b_tweet_updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    s7b_tweet_deleted_at DATETIME DEFAULT NULL,
     PRIMARY KEY (s7b_tweet_id),
     KEY idx_tweet_article (s7b_article_id),
     KEY idx_tweet_status (s7b_tweet_status),
-    KEY idx_tweet_scheduled (s7b_tweet_scheduled_at)
+    KEY idx_tweet_scheduled (s7b_tweet_scheduled_time),
+    KEY idx_tweet_deleted (s7b_tweet_deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `;
 
 const SEED_SQL = `
--- Default Admin User
-INSERT IGNORE INTO s7b_user (s7b_user_username, s7b_user_password, s7b_user_active, s7b_user_admin, s7b_user_name, s7b_user_brief)
-VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1, 1, 'Administrator', 'System Administrator');
+-- Default Admin User (change credentials before deploying)
+INSERT IGNORE INTO s7b_user (s7b_user_username, s7b_user_password, s7b_user_email, s7b_user_role, s7b_user_active, s7b_user_admin, s7b_user_name, s7b_user_brief)
+VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin@example.com', 'admin', 1, 1, 'Administrator', 'System Administrator');
 
 -- Default Sections
 INSERT IGNORE INTO s7b_section (s7b_section_title, s7b_section_slug, s7b_section_order, s7b_section_active)

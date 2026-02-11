@@ -19,7 +19,7 @@ export default function Breadcrumbs({ items, variant = 'dark' }: BreadcrumbsProp
 
   // Generate JSON-LD structured data for SEO
   const generateStructuredData = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://s7abt-dubai.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://s7abt.com';
 
     const itemListElement = items.map((item, index) => ({
       '@type': 'ListItem',

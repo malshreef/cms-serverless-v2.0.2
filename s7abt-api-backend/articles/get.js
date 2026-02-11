@@ -74,7 +74,6 @@ exports.handler = async (event) => {
         s7b_comment_user_name as authorName,
         s7b_comment_user_email as authorEmail,
         s7b_comment_body as body,
-        s7b_comment_image as authorImage,
         s7b_comment_add_date as createdAt,
         s7b_comment_active as active
       FROM s7b_comment

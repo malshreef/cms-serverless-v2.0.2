@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const News = () => {
-  const { user, permissions } = useAuth();
+  const { permissions } = useAuth();
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, active, inactive
@@ -376,7 +376,7 @@ const News = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        {permissions.canOnResource('news', 'update', item.userId, user?.userId) && (
+                        {permissions.canOnResource('news', 'update', item.userId) && (
                           <Link
                             to={`/news/${item.id}/edit`}
                             className="p-2 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition"
@@ -394,7 +394,7 @@ const News = () => {
                             {item.active === 1 ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                           </button>
                         )}
-                        {permissions.canOnResource('news', 'delete', item.userId, user?.userId) && (
+                        {permissions.canOnResource('news', 'delete', item.userId) && (
                           <button
                             onClick={() => handleDelete(item.id)}
                             className="p-2 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition"
