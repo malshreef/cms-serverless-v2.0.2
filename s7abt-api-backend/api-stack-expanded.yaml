@@ -162,6 +162,18 @@ Resources:
       TargetId: !Ref RDSInstance
       TargetType: AWS::RDS::DBInstance
 
+  # ==================== VPC Endpoints ====================
+  SecretsManagerVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+
   # ==================== API Gateway ====================
   S7abtApi:
     Type: AWS::Serverless::Api
