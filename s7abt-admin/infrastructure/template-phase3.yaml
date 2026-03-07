@@ -22,35 +22,32 @@ Parameters:
 
   UserPoolId:
     Type: String
-    Description: ID of existing Cognito User Pool (e.g., us-east-1_XXXXXXX)
+    Description: ID of existing Cognito User Pool (e.g., me-south-1_XXXXXXX)
 
   MediaBucketName:
     Type: String
     Description: Name of existing S3 media bucket
 
-  VpcSecurityGroupId:
-    Type: String
-    Description: Security group ID for Lambda functions to access RDS
-    Default: sg-07ac7211c721e6f06
+  VpcSecurityGroupIds:
+    Type: CommaDelimitedList
+    Description: Comma-separated list of security group IDs for Lambda functions (must allow outbound to RDS on port 3306)
 
   VpcSubnetIds:
     Type: CommaDelimitedList
-    Description: Subnet IDs for Lambda functions (comma-separated)
-    Default: subnet-07351a2d5060f431c,subnet-0a90523721b511e4d,subnet-07f0ff07772cc51b6
+    Description: Comma-separated list of VPC subnet IDs for Lambda functions (must have access to RDS)
 
 Globals:
   Function:
-    Runtime: nodejs18.x
+    Runtime: nodejs20.x
     Timeout: 30
     MemorySize: 256
     VpcConfig:
-      SecurityGroupIds:
-        - !Ref VpcSecurityGroupId
       SubnetIds: !Ref VpcSubnetIds
+      SecurityGroupIds: !Ref VpcSecurityGroupIds
     Environment:
       Variables:
         ENVIRONMENT: !Ref Environment
-        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
+        DB_SECRET_ARN: !Ref DatabaseSecretArn
         DB_SECRET_NAME: !Ref DatabaseSecretArn
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
     Tags:
@@ -62,7 +59,7 @@ Resources:
   # ========================================
   # IAM Role for Lambda Functions
   # ========================================
-  
+
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -114,7 +111,7 @@ Resources:
   # ========================================
   # Lambda Functions - Authentication
   # ========================================
-  
+
   GetCurrentUserFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -166,7 +163,7 @@ Resources:
   # ========================================
   # Lambda Functions - Articles CRUD
   # ========================================
-  
+
   ListArticlesFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -263,7 +260,7 @@ Resources:
   # ========================================
   # Lambda Functions - Sections CRUD
   # ========================================
-  
+
   ListSectionsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -327,7 +324,7 @@ Resources:
   # ========================================
   # Lambda Functions - Tags CRUD
   # ========================================
-  
+
   ListTagsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -651,4 +648,3 @@ Outputs:
     Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
     Export:
       Name: !Sub ${AWS::StackName}-ApiEndpoint
-
