@@ -16,12 +16,23 @@ export default function FAQ() {
                 <p className="text-muted-blue">{t('subtitle')}</p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
                 {faqs.map((faq, index) => (
-                    <div key={index} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                        <div className="p-6">
-                            <h3 className="font-semibold text-charcoal text-lg mb-3">{faq.question}</h3>
-                            <p className="text-muted-blue leading-relaxed">{faq.answer}</p>
+                    <div key={index} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+                        <div className="p-8">
+                            <h3 className="font-bold text-charcoal text-xl mb-5 border-b border-gray-100 pb-3">{faq.question}</h3>
+                            <div className="text-muted-blue leading-loose text-base space-y-4">
+                                {faq.answer.split('\n\n').map((paragraph: string, pIndex: number) => (
+                                    <p key={pIndex} className="leading-[2]">
+                                        {paragraph.split('\n').map((line: string, lIndex: number, arr: string[]) => (
+                                            <span key={lIndex}>
+                                                {line}
+                                                {lIndex < arr.length - 1 && <br />}
+                                            </span>
+                                        ))}
+                                    </p>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ))}
