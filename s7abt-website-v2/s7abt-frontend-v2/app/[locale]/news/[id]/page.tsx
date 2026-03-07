@@ -1,5 +1,6 @@
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import CopyCodeButton from '@/components/ui/CopyCodeButton';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
@@ -189,6 +190,16 @@ export default async function NewsDetailPage({ params }: NewsPageProps) {
                                         blockquote: ({ node, ...props }) => (
                                             <blockquote className="border-l-4 border-sky-cta pl-4 italic my-6 text-gray-600 bg-gray-50 p-4 rounded-r-lg" {...props} />
                                         ),
+                                        pre: ({ node, children, ...props }: any) => {
+                                            const codeEl = node?.children?.find((c: any) => c.tagName === 'code');
+                                            const codeText = codeEl?.children?.map((c: any) => c.value || '').join('') || '';
+                                            return (
+                                                <pre className="relative bg-[#1a1a1a] text-green-400 p-6 rounded-lg overflow-x-auto my-8" {...props}>
+                                                    <CopyCodeButton code={codeText} locale={locale} />
+                                                    {children}
+                                                </pre>
+                                            );
+                                        },
                                         code: ({ node, className, children, ...props }: any) => {
                                             const match = /language-(\w+)/.exec(className || '')
                                             return !match ? (

@@ -23,6 +23,38 @@ export default function ArticleContent({ article, locale, isRTL }: ArticleConten
   const [activeId, setActiveId] = useState<string>('');
   const articleBodyRef = useRef<HTMLDivElement>(null);
 
+  // Add copy buttons to code blocks
+  useEffect(() => {
+    if (!articleBodyRef.current) return;
+
+    const preBlocks = articleBodyRef.current.querySelectorAll('pre');
+    preBlocks.forEach((pre) => {
+      // Skip if already has a copy button
+      if (pre.querySelector('.copy-code-btn')) return;
+
+      // Make pre relative for absolute positioning of button
+      pre.style.position = 'relative';
+
+      const btn = document.createElement('button');
+      btn.className = 'copy-code-btn';
+      btn.textContent = locale === 'ar' ? 'نسخ' : 'Copy';
+      btn.addEventListener('click', () => {
+        const code = pre.querySelector('code');
+        const text = code ? code.textContent || '' : pre.textContent || '';
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = locale === 'ar' ? 'تم النسخ!' : 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = locale === 'ar' ? 'نسخ' : 'Copy';
+            btn.classList.remove('copied');
+          }, 2000);
+        });
+      });
+
+      pre.appendChild(btn);
+    });
+  }, [locale]);
+
   useEffect(() => {
     if (!articleBodyRef.current) return;
 
@@ -267,6 +299,33 @@ export default function ArticleContent({ article, locale, isRTL }: ArticleConten
           background: transparent;
           color: inherit;
           padding: 0;
+        }
+
+        .article-content pre .copy-code-btn {
+          position: absolute;
+          top: 0.5rem;
+          ${isRTL ? 'left' : 'right'}: 0.5rem;
+          background: rgba(255, 255, 255, 0.15);
+          color: #e5e7eb;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 0.375rem;
+          padding: 0.25rem 0.75rem;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-family: inherit;
+          z-index: 1;
+        }
+
+        .article-content pre .copy-code-btn:hover {
+          background: rgba(255, 255, 255, 0.25);
+          color: #fff;
+        }
+
+        .article-content pre .copy-code-btn.copied {
+          background: rgba(74, 222, 128, 0.2);
+          color: #4ade80;
+          border-color: rgba(74, 222, 128, 0.4);
         }
 
         .article-content table {
