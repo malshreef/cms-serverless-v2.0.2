@@ -1,8 +1,8 @@
 import { MetadataRoute } from 'next';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://s7abt-dubai.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://s7abt.com';
 
 // Supported locales
 const locales = ['ar', 'en'];
@@ -12,7 +12,9 @@ function safeParseDate(dateString: string | null | undefined): Date {
   if (!dateString) return new Date();
 
   try {
-    const date = new Date(dateString);
+    // Normalize MySQL datetime format (space separator) to ISO format
+    const normalized = dateString.replace(' ', 'T');
+    const date = new Date(normalized);
     // Check if date is valid
     if (isNaN(date.getTime())) {
       return new Date();

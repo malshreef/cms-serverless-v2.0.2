@@ -84,7 +84,10 @@ export default function ArticleCard(props: ArticleCardProps) {
   const displayImage = imageError || !formattedImage ? PLACEHOLDER_IMAGE : formattedImage;
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    if (!dateString) return locale === 'ar' ? 'غير محدد' : 'Unknown';
+    const normalized = dateString.replace(' ', 'T');
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return locale === 'ar' ? 'غير محدد' : 'Unknown';
     // Use ar-EG for Arabic to ensure Gregorian calendar (ar-SA uses Hijri by default)
     // This prevents hydration mismatch between server and client
     return date.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {

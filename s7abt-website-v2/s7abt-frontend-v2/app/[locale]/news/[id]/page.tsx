@@ -68,7 +68,11 @@ export default async function NewsDetailPage({ params }: NewsPageProps) {
         }
 
         const formatDate = (dateString: string) => {
-            const date = new Date(dateString);
+            if (!dateString) return locale === 'ar' ? 'غير محدد' : 'Unknown';
+            // Normalize MySQL datetime format (space separator) to ISO format
+            const normalized = dateString.replace(' ', 'T');
+            const date = new Date(normalized);
+            if (isNaN(date.getTime())) return locale === 'ar' ? 'غير محدد' : 'Unknown';
             return date.toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US', {
                 year: 'numeric',
                 month: 'long',

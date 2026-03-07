@@ -59,8 +59,8 @@ export default function SearchResultCard({ article, searchQuery }: SearchResultC
   // Format date
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
-    
-    const date = new Date(dateString);
+
+    const date = new Date(dateString.replace(' ', 'T'));
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));

@@ -16,7 +16,10 @@ export default function PremiumArticlesSection({ articles, locale }: PremiumArti
   const isRTL = locale === 'ar';
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    if (!dateString) return locale === 'ar' ? 'غير محدد' : 'Unknown';
+    const normalized = dateString.replace(' ', 'T');
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return locale === 'ar' ? 'غير محدد' : 'Unknown';
     return date.toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US', {
       year: 'numeric',
       month: 'short',
@@ -79,7 +82,7 @@ export default function PremiumArticlesSection({ articles, locale }: PremiumArti
                   </span>
                 )}
                 <span className={`text-muted-blue text-sm ${isRTL ? 'mr-3' : 'ml-3'}`}>
-                  {formatReadingTime(featuredArticle.readingTime || featuredArticle.reading_time || 5, locale)}
+                  {formatReadingTime(featuredArticle.reading_time || 5, locale)}
                 </span>
               </div>
 
@@ -151,7 +154,7 @@ export default function PremiumArticlesSection({ articles, locale }: PremiumArti
 
                     {/* Reading Time */}
                     <span className="text-xs text-muted-blue">
-                      {formatReadingTime(article.readingTime || article.reading_time || 5, locale)}
+                      {formatReadingTime(article.reading_time || 5, locale)}
                     </span>
                   </div>
                 </div>

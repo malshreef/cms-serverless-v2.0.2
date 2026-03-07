@@ -120,7 +120,10 @@ export default function TagDetailPage({ params }: TagDetailPageProps) {
   };
 
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
+    if (!dateString) return locale === 'ar' ? 'غير محدد' : 'Unknown';
+    const normalized = dateString.replace(' ', 'T');
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return locale === 'ar' ? 'غير محدد' : 'Unknown';
     return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-SA' : 'en-US', {
       year: 'numeric',
       month: 'long',
