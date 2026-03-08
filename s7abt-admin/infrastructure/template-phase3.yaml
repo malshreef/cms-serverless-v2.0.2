@@ -258,6 +258,26 @@ Resources:
             Method: post
 
   # ========================================
+  # Scheduled Article Publisher (EventBridge Cron)
+  # ========================================
+
+  PublishScheduledArticlesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-admin-publish-scheduled-${Environment}
+      CodeUri: ../backend/articles/
+      Handler: publish-scheduled.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 60
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Description: Auto-publish scheduled articles every 5 minutes
+            Enabled: true
+
+  # ========================================
   # Lambda Functions - Sections CRUD
   # ========================================
 

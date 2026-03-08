@@ -24,10 +24,14 @@ exports.handler = async (event) => {
     let queryParams = [];
 
     if (status) {
-      // Map status to active field: 'published' = 1, 'draft' = 0
-      const activeValue = status === 'published' ? 1 : 0;
-      whereConditions.push('a.s7b_article_active = ?');
-      queryParams.push(activeValue);
+      if (status === 'scheduled') {
+        whereConditions.push('a.s7b_article_active = 0 AND a.s7b_article_scheduled_at IS NOT NULL');
+      } else if (status === 'draft') {
+        whereConditions.push('a.s7b_article_active = 0 AND a.s7b_article_scheduled_at IS NULL');
+      } else {
+        // published
+        whereConditions.push('a.s7b_article_active = 1');
+      }
     }
 
     if (sectionId) {
@@ -64,6 +68,7 @@ exports.handler = async (event) => {
         a.s7b_article_description as excerpt,
         a.s7b_article_image as main_image,
         a.s7b_article_active as active,
+        a.s7b_article_scheduled_at as scheduled_at,
         a.s7b_article_premium as premium,
         a.s7b_article_views as views,
         a.s7b_article_add_date as created_at,
@@ -82,7 +87,7 @@ exports.handler = async (event) => {
       WHERE ${whereClause}
       GROUP BY a.s7b_article_id, a.s7b_article_title, a.s7b_article_slug, 
                a.s7b_article_description, a.s7b_article_image,
-               a.s7b_article_active, a.s7b_article_premium, a.s7b_article_views, 
+               a.s7b_article_active, a.s7b_article_scheduled_at, a.s7b_article_premium, a.s7b_article_views,
                a.s7b_article_add_date, a.s7b_article_updated_at,
                u.s7b_user_name, u.s7b_user_id, 
                s.s7b_section_title, s.s7b_section_id
@@ -91,7 +96,7 @@ exports.handler = async (event) => {
     `;
 
     queryParams.push(limit, offset);
-    const articles = await db.query(sql, queryParams);
+    const articles = await db.rawQuery(sql, queryParams);
 
     // Format the response
     const formattedArticles = articles.map(article => ({
@@ -100,7 +105,8 @@ exports.handler = async (event) => {
       slug: article.slug,
       excerpt: article.excerpt,
       mainImage: article.main_image,
-      status: article.active === 1 ? 'published' : 'draft',
+      status: article.active === 1 ? 'published' : (article.scheduled_at ? 'scheduled' : 'draft'),
+      scheduledAt: article.scheduled_at || null,
       premium: article.premium === 1,
       views: article.views || 0,
       createdAt: article.created_at,

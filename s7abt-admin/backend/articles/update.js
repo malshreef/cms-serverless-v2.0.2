@@ -52,6 +52,7 @@ exports.handler = async (event) => {
       sections, // Array of {title, content} objects
       mainImage,
       status,
+      scheduledAt,
       premium,
       sectionId,
       tagIds
@@ -69,7 +70,15 @@ exports.handler = async (event) => {
     }
     
     if (status) {
-      errors.push(...validation.validateEnum(status, 'status', ['draft', 'published']));
+      errors.push(...validation.validateEnum(status, 'status', ['draft', 'published', 'scheduled']));
+    }
+
+    if (status === 'scheduled') {
+      if (!scheduledAt) {
+        errors.push({ field: 'scheduledAt', message: 'Scheduled date is required when status is scheduled' });
+      } else if (new Date(scheduledAt) <= new Date()) {
+        errors.push({ field: 'scheduledAt', message: 'Scheduled date must be in the future' });
+      }
     }
 
     if (errors.length > 0) {
@@ -120,6 +129,15 @@ exports.handler = async (event) => {
       const activeValue = allowedStatus === 'published' ? 1 : 0;
       updates.push('s7b_article_active = ?');
       params.push(activeValue);
+
+      // Handle scheduled_at based on status
+      if (allowedStatus === 'scheduled' && scheduledAt) {
+        updates.push('s7b_article_scheduled_at = ?');
+        params.push(new Date(scheduledAt).toISOString().slice(0, 19).replace('T', ' '));
+      } else {
+        // Clear scheduled_at when switching to draft or published
+        updates.push('s7b_article_scheduled_at = NULL');
+      }
     }
     if (sectionId !== undefined) {
       updates.push('s7b_section_id = ?');
@@ -152,13 +170,13 @@ exports.handler = async (event) => {
         SET ${updates.join(', ')}
         WHERE s7b_article_id = ? AND s7b_article_deleted_at IS NULL
       `;
-      await connection.execute(updateSql, params);
+      await connection.query(updateSql, params);
     }
 
     // Update tags if provided
     if (tagIds !== undefined) {
       // Delete existing tags
-      await connection.execute(
+      await connection.query(
         'DELETE FROM s7b_tags_item WHERE s7b_article_id = ?',
         [articleId]
       );
@@ -166,7 +184,7 @@ exports.handler = async (event) => {
       // Insert new tags
       if (tagIds && tagIds.length > 0) {
         for (const tagId of tagIds) {
-          await connection.execute(
+          await connection.query(
             'INSERT INTO s7b_tags_item (s7b_tags_id, s7b_article_id) VALUES (?, ?)',
             [tagId, articleId]
           );
@@ -187,6 +205,7 @@ exports.handler = async (event) => {
         a.s7b_article_description as excerpt,
         a.s7b_article_image as main_image,
         a.s7b_article_active as active,
+        a.s7b_article_scheduled_at as scheduled_at,
         a.s7b_article_premium as premium,
         a.s7b_article_updated_at as updated_at,
         u.s7b_user_name as author_name
@@ -202,7 +221,8 @@ exports.handler = async (event) => {
       slug: updatedArticle.slug,
       excerpt: updatedArticle.excerpt,
       mainImage: updatedArticle.main_image,
-      status: updatedArticle.active === 1 ? 'published' : 'draft',
+      status: updatedArticle.active === 1 ? 'published' : (updatedArticle.scheduled_at ? 'scheduled' : 'draft'),
+      scheduledAt: updatedArticle.scheduled_at || null,
       premium: updatedArticle.premium === 1,
       updatedAt: updatedArticle.updated_at,
       author: {

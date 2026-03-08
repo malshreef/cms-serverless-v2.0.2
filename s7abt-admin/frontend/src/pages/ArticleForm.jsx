@@ -5,13 +5,13 @@ import ImageUpload from '../components/ImageUpload';
 import RichTextEditor from '../components/RichTextEditor';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { canPublish } from '../lib/permissions';
+import { canPublish, isOwnershipBased } from '../lib/permissions';
 
 const ArticleForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const userCanPublish = canPublish(user?.role, 'articles');
 
   const [loading, setLoading] = useState(false);
@@ -24,6 +24,7 @@ const ArticleForm = () => {
     excerpt: '',
     mainImageKey: '',
     status: 'draft',
+    scheduledAt: '',
     premium: false,
     sectionId: '',
     sections: [{ title: '', content: '' }],
@@ -66,7 +67,17 @@ const ArticleForm = () => {
       setLoading(true);
       const response = await articlesAPI.get(id);
       const article = response.data.data;
-      
+
+      // Ownership check: content_specialist can only edit their own articles
+      if (isOwnershipBased(user?.role, 'articles', 'update')) {
+        const articleOwnerId = article.author?.id;
+        if (String(articleOwnerId) !== String(user?.dbUserId)) {
+          setError('ليس لديك صلاحية تعديل هذا المقال');
+          navigate('/articles');
+          return;
+        }
+      }
+
       // Handle mainImage - filter out "no-image.png" default placeholder
       let imageKey = article.mainImage || '';
       if (imageKey === 'no-image.png') {
@@ -79,6 +90,7 @@ const ArticleForm = () => {
         excerpt: article.excerpt || '',
         mainImageKey: imageKey,
         status: article.status || 'draft',
+        scheduledAt: article.scheduledAt ? new Date(article.scheduledAt.replace(' ', 'T')).toISOString().slice(0, 16) : '',
         premium: article.premium || false,
         sectionId: article.section?.id || article.sectionId || '',
         sections: article.sections || [{ title: '', content: '' }],
@@ -144,6 +156,11 @@ const ArticleForm = () => {
       return;
     }
 
+    if (formData.status === 'scheduled' && !formData.scheduledAt) {
+      setError('يرجى تحديد تاريخ ووقت النشر المجدول');
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
@@ -154,6 +171,7 @@ const ArticleForm = () => {
         excerpt: formData.excerpt,
         mainImage: formData.mainImageKey || 'no-image.png', // Use default if no image
         status: formData.status,
+        scheduledAt: formData.status === 'scheduled' ? new Date(formData.scheduledAt).toISOString() : null,
         premium: formData.premium,
         userId: 1, // TODO: Map Cognito user to database user ID
         sectionId: parseInt(formData.sectionId),
@@ -294,6 +312,28 @@ const ArticleForm = () => {
               )}
             </select>
           </div>
+
+          {/* Scheduled Date/Time */}
+          {formData.status === 'scheduled' && (
+            <div>
+              <label className="block text-sm font-medium text-charcoal mb-2 text-right">
+                تاريخ ووقت النشر <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                name="scheduledAt"
+                value={formData.scheduledAt}
+                onChange={handleInputChange}
+                min={new Date().toISOString().slice(0, 16)}
+                className="w-full px-4 py-2 border border-border-blue rounded-lg focus:ring-2 focus:ring-sky-cta focus:border-transparent text-left"
+                dir="ltr"
+                required
+              />
+              <p className="text-xs text-muted-blue mt-2 text-right">
+                سيتم نشر المقال تلقائياً في التاريخ والوقت المحددين
+              </p>
+            </div>
+          )}
 
           {/* Premium Article */}
           <div>

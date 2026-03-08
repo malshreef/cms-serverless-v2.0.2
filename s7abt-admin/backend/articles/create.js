@@ -27,6 +27,7 @@ exports.handler = async (event) => {
       sections, // Array of {title, content} objects
       mainImage,
       status = 'draft',
+      scheduledAt,
       premium = false,
       sectionId,
       tagIds = []
@@ -56,7 +57,16 @@ exports.handler = async (event) => {
     errors.push(...validation.validateLength(excerpt, 'excerpt', 0, 300));
     
     // Validate status
-    errors.push(...validation.validateEnum(status, 'status', ['draft', 'published']));
+    errors.push(...validation.validateEnum(status, 'status', ['draft', 'published', 'scheduled']));
+
+    // Validate scheduledAt is required and in the future when status is 'scheduled'
+    if (status === 'scheduled') {
+      if (!scheduledAt) {
+        errors.push({ field: 'scheduledAt', message: 'Scheduled date is required when status is scheduled' });
+      } else if (new Date(scheduledAt) <= new Date()) {
+        errors.push({ field: 'scheduledAt', message: 'Scheduled date must be in the future' });
+      }
+    }
 
     if (errors.length > 0) {
       return response.validationError(errors);
@@ -79,7 +89,9 @@ exports.handler = async (event) => {
     }
 
     // Map status to active field (use filtered status)
+    // scheduled articles stay inactive until the scheduler publishes them
     const activeValue = finalStatus === 'published' ? 1 : 0;
+    const scheduledAtValue = finalStatus === 'scheduled' && scheduledAt ? new Date(scheduledAt).toISOString().slice(0, 19).replace('T', ' ') : null;
     const premiumValue = premium ? 1 : 0;
 
     // Prepare section data (up to 5 sections)
@@ -119,14 +131,15 @@ exports.handler = async (event) => {
         s7b_article_div5_body,
         s7b_article_image,
         s7b_article_active,
+        s7b_article_scheduled_at,
         s7b_article_premium,
         s7b_user_id,
         s7b_section_id,
         s7b_article_add_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
-    const [result] = await connection.execute(insertSql, [
+    const [result] = await connection.query(insertSql, [
       title,
       finalSlug,
       excerpt || 'Description',
@@ -142,6 +155,7 @@ exports.handler = async (event) => {
       sectionData[4]?.content || null,
       mainImage || 'no-image.png',
       activeValue,
+      scheduledAtValue,
       premiumValue,
       userId,
       sectionId || null
@@ -152,7 +166,7 @@ exports.handler = async (event) => {
     // Insert tags if provided
     if (tagIds && tagIds.length > 0) {
       for (const tagId of tagIds) {
-        await connection.execute(
+        await connection.query(
           'INSERT INTO s7b_tags_item (s7b_tags_id, s7b_article_id) VALUES (?, ?)',
           [tagId, articleId]
         );
@@ -172,6 +186,7 @@ exports.handler = async (event) => {
         a.s7b_article_description as excerpt,
         a.s7b_article_image as main_image,
         a.s7b_article_active as active,
+        a.s7b_article_scheduled_at as scheduled_at,
         a.s7b_article_premium as premium,
         a.s7b_article_add_date as created_at,
         u.s7b_user_name as author_name
@@ -187,7 +202,8 @@ exports.handler = async (event) => {
       slug: createdArticle.slug,
       excerpt: createdArticle.excerpt,
       mainImage: createdArticle.main_image,
-      status: createdArticle.active === 1 ? 'published' : 'draft',
+      status: createdArticle.active === 1 ? 'published' : (createdArticle.scheduled_at ? 'scheduled' : 'draft'),
+      scheduledAt: createdArticle.scheduled_at || null,
       premium: createdArticle.premium === 1,
       createdAt: createdArticle.created_at,
       author: {

@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const Articles = () => {
   const navigate = useNavigate();
-  const { user, permissions } = useAuth();
+  const { permissions } = useAuth();
   const [articles, setArticles] = useState([]);
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -252,11 +252,18 @@ const Articles = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end space-x-2 space-x-reverse">
-                          {getStatusBadge(article.status)}
-                          {article.premium && (
-                            <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
-                              مميز
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center space-x-2 space-x-reverse">
+                            {getStatusBadge(article.status)}
+                            {article.premium && (
+                              <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                                مميز
+                              </span>
+                            )}
+                          </div>
+                          {article.status === 'scheduled' && article.scheduledAt && (
+                            <span className="text-xs text-blue-600">
+                              {new Date(article.scheduledAt.replace(' ', 'T')).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}
                             </span>
                           )}
                         </div>
@@ -273,7 +280,7 @@ const Articles = () => {
                           >
                             <Eye className="w-4 h-4 text-muted-blue" />
                           </button>
-                          {permissions.canOnResource('articles', 'update', article.userId, user?.userId) && (
+                          {permissions.canOnResource('articles', 'update', article.author?.id) && (
                             <button
                               onClick={() => navigate(`/articles/${article.id}/edit`)}
                               className="p-2 hover:bg-sky-bg rounded-lg transition"
@@ -282,7 +289,7 @@ const Articles = () => {
                               <Edit className="w-4 h-4 text-sky-cta" />
                             </button>
                           )}
-                          {permissions.canOnResource('articles', 'delete', article.userId, user?.userId) && (
+                          {permissions.canOnResource('articles', 'delete', article.author?.id) && (
                             <button
                               onClick={() => handleDelete(article.id, article.title)}
                               className="p-2 hover:bg-red-50 rounded-lg transition"
