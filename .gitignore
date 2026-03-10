@@ -93,6 +93,9 @@ tmp/
 temp/
 *.tmp
 *.temp
+PLAN.md
+arn-info.txt
+*-response*.json
 
 # Archives (may contain backups with secrets)
 *.zip
