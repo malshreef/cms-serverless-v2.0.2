@@ -1,18 +1,23 @@
 /**
- * Role-Based Access Control (RBAC) Configuration for Frontend
+ * Role-Based Access Control (RBAC) Configuration
  *
- * Mirrors the backend permissions configuration.
- * Use this to show/hide UI elements based on user role.
+ * Defines permissions for each role in the system.
+ *
+ * Roles (highest to lowest):
+ * - admin: Full system access
+ * - content_manager: Manage all content, cannot manage users/settings
+ * - content_specialist: Create/manage own content only
+ * - viewer: Read-only access
  */
 
-export const ROLES = {
+const ROLES = {
   ADMIN: 'admin',
   CONTENT_MANAGER: 'content_manager',
   CONTENT_SPECIALIST: 'content_specialist',
   VIEWER: 'viewer',
 };
 
-export const VALID_ROLES = Object.values(ROLES);
+const VALID_ROLES = Object.values(ROLES);
 
 /**
  * Permission definitions for each role
@@ -20,13 +25,11 @@ export const VALID_ROLES = Object.values(ROLES);
  * Permission types:
  * - true: Full access
  * - false: No access
- * - 'own': Can only access own resources
+ * - 'own': Can only access own resources (based on s7b_user_id)
  */
 const PERMISSIONS = {
   [ROLES.ADMIN]: {
-    dashboard: {
-      read: true,
-    },
+    // User Management
     users: {
       create: true,
       read: true,
@@ -34,6 +37,7 @@ const PERMISSIONS = {
       delete: true,
       list: true,
     },
+    // Articles
     articles: {
       create: true,
       read: true,
@@ -42,6 +46,7 @@ const PERMISSIONS = {
       list: true,
       publish: true,
     },
+    // News
     news: {
       create: true,
       read: true,
@@ -50,6 +55,7 @@ const PERMISSIONS = {
       list: true,
       publish: true,
     },
+    // Sections (Categories)
     sections: {
       create: true,
       read: true,
@@ -57,6 +63,7 @@ const PERMISSIONS = {
       delete: true,
       list: true,
     },
+    // Tags
     tags: {
       create: true,
       read: true,
@@ -64,6 +71,7 @@ const PERMISSIONS = {
       delete: true,
       list: true,
     },
+    // Tweets
     tweets: {
       create: true,
       read: true,
@@ -72,25 +80,19 @@ const PERMISSIONS = {
       list: true,
       publish: true,
     },
+    // Settings
     settings: {
       read: true,
       update: true,
     },
-    comments: {
-      read: true,
-      update: true,
-      delete: true,
-      list: true,
-    },
+    // Analytics
     analytics: {
       read: true,
     },
   },
 
   [ROLES.CONTENT_MANAGER]: {
-    dashboard: {
-      read: true,
-    },
+    // User Management - Limited
     users: {
       create: false,
       read: true,
@@ -98,6 +100,7 @@ const PERMISSIONS = {
       delete: false,
       list: true,
     },
+    // Articles - Full content access
     articles: {
       create: true,
       read: true,
@@ -106,6 +109,7 @@ const PERMISSIONS = {
       list: true,
       publish: true,
     },
+    // News - Full content access
     news: {
       create: true,
       read: true,
@@ -114,6 +118,7 @@ const PERMISSIONS = {
       list: true,
       publish: true,
     },
+    // Sections - Can manage
     sections: {
       create: true,
       read: true,
@@ -121,6 +126,7 @@ const PERMISSIONS = {
       delete: true,
       list: true,
     },
+    // Tags - Can manage
     tags: {
       create: true,
       read: true,
@@ -128,6 +134,7 @@ const PERMISSIONS = {
       delete: true,
       list: true,
     },
+    // Tweets - Can manage
     tweets: {
       create: true,
       read: true,
@@ -136,25 +143,19 @@ const PERMISSIONS = {
       list: true,
       publish: true,
     },
-    comments: {
-      read: true,
-      update: true,
-      delete: true,
-      list: true,
-    },
+    // Settings - No access
     settings: {
       read: false,
       update: false,
     },
+    // Analytics
     analytics: {
       read: true,
     },
   },
 
   [ROLES.CONTENT_SPECIALIST]: {
-    dashboard: {
-      read: true,
-    },
+    // User Management - No access
     users: {
       create: false,
       read: false,
@@ -162,6 +163,7 @@ const PERMISSIONS = {
       delete: false,
       list: false,
     },
+    // Articles - Own content only
     articles: {
       create: true,
       read: true,
@@ -170,6 +172,7 @@ const PERMISSIONS = {
       list: true,
       publish: false,
     },
+    // News - Own content only
     news: {
       create: true,
       read: true,
@@ -178,6 +181,7 @@ const PERMISSIONS = {
       list: true,
       publish: false,
     },
+    // Sections - Read only
     sections: {
       create: false,
       read: true,
@@ -185,6 +189,7 @@ const PERMISSIONS = {
       delete: false,
       list: true,
     },
+    // Tags - Read only
     tags: {
       create: false,
       read: true,
@@ -192,6 +197,7 @@ const PERMISSIONS = {
       delete: false,
       list: true,
     },
+    // Tweets - No access
     tweets: {
       create: false,
       read: false,
@@ -200,25 +206,19 @@ const PERMISSIONS = {
       list: false,
       publish: false,
     },
-    comments: {
-      read: true,
-      update: false,
-      delete: false,
-      list: true,
-    },
+    // Settings - No access
     settings: {
       read: false,
       update: false,
     },
+    // Analytics - No access
     analytics: {
       read: false,
     },
   },
 
   [ROLES.VIEWER]: {
-    dashboard: {
-      read: true,
-    },
+    // User Management - No access
     users: {
       create: false,
       read: false,
@@ -226,6 +226,7 @@ const PERMISSIONS = {
       delete: false,
       list: false,
     },
+    // Articles - Read only
     articles: {
       create: false,
       read: true,
@@ -234,6 +235,7 @@ const PERMISSIONS = {
       list: true,
       publish: false,
     },
+    // News - Read only
     news: {
       create: false,
       read: true,
@@ -242,6 +244,7 @@ const PERMISSIONS = {
       list: true,
       publish: false,
     },
+    // Sections - Read only
     sections: {
       create: false,
       read: true,
@@ -249,6 +252,7 @@ const PERMISSIONS = {
       delete: false,
       list: true,
     },
+    // Tags - Read only
     tags: {
       create: false,
       read: true,
@@ -256,6 +260,7 @@ const PERMISSIONS = {
       delete: false,
       list: true,
     },
+    // Tweets - No access
     tweets: {
       create: false,
       read: false,
@@ -264,21 +269,45 @@ const PERMISSIONS = {
       list: false,
       publish: false,
     },
-    comments: {
-      read: true,
-      update: false,
-      delete: false,
-      list: true,
-    },
+    // Settings - No access
     settings: {
       read: false,
       update: false,
     },
+    // Analytics - No access
     analytics: {
       read: false,
     },
   },
 };
+
+/**
+ * Get user role from Lambda event
+ * @param {object} event - Lambda event object
+ * @returns {string} User role (defaults to 'viewer')
+ */
+function getUserRole(event) {
+  return event.requestContext?.authorizer?.claims?.['custom:role'] || ROLES.VIEWER;
+}
+
+/**
+ * Get user ID from Lambda event (Cognito sub or email)
+ * @param {object} event - Lambda event object
+ * @returns {string|null} User identifier
+ */
+function getUserId(event) {
+  const claims = event.requestContext?.authorizer?.claims;
+  return claims?.sub || claims?.email || null;
+}
+
+/**
+ * Get user email from Lambda event
+ * @param {object} event - Lambda event object
+ * @returns {string|null} User email
+ */
+function getUserEmail(event) {
+  return event.requestContext?.authorizer?.claims?.email || null;
+}
 
 /**
  * Check if user has permission for an action
@@ -287,7 +316,7 @@ const PERMISSIONS = {
  * @param {string} action - Action name (e.g., 'create', 'update', 'delete')
  * @returns {boolean|string} true, false, or 'own'
  */
-export function hasPermission(role, resource, action) {
+function hasPermission(role, resource, action) {
   const normalizedRole = VALID_ROLES.includes(role) ? role : ROLES.VIEWER;
   const rolePermissions = PERMISSIONS[normalizedRole];
 
@@ -300,13 +329,12 @@ export function hasPermission(role, resource, action) {
 
 /**
  * Check if user can perform action (simple true/false check)
- * Returns true if permission is true or 'own'
  * @param {string} role - User role
  * @param {string} resource - Resource name
  * @param {string} action - Action name
  * @returns {boolean}
  */
-export function canPerform(role, resource, action) {
+function canPerform(role, resource, action) {
   const permission = hasPermission(role, resource, action);
   return permission === true || permission === 'own';
 }
@@ -318,44 +346,8 @@ export function canPerform(role, resource, action) {
  * @param {string} action - Action name
  * @returns {boolean}
  */
-export function isOwnershipBased(role, resource, action) {
+function isOwnershipBased(role, resource, action) {
   return hasPermission(role, resource, action) === 'own';
-}
-
-/**
- * Check if user can perform action on a specific resource
- * Takes into account ownership
- * @param {string} role - User role
- * @param {string} resource - Resource name
- * @param {string} action - Action name
- * @param {number|string} resourceOwnerId - Owner ID of the resource
- * @param {number|string} currentUserId - Current user's ID
- * @returns {boolean}
- */
-export function canPerformOnResource(role, resource, action, resourceOwnerId, currentUserId) {
-  const permission = hasPermission(role, resource, action);
-
-  // Full permission
-  if (permission === true) {
-    return true;
-  }
-
-  // Ownership-based permission
-  if (permission === 'own') {
-    return String(resourceOwnerId) === String(currentUserId);
-  }
-
-  return false;
-}
-
-/**
- * Check if user can publish content
- * @param {string} role - User role
- * @param {string} resource - Resource name ('articles', 'news', 'tweets')
- * @returns {boolean}
- */
-export function canPublish(role, resource) {
-  return hasPermission(role, resource, 'publish') === true;
 }
 
 /**
@@ -363,83 +355,30 @@ export function canPublish(role, resource) {
  * @param {string} role - User role
  * @returns {object} All permissions for the role
  */
-export function getRolePermissions(role) {
+function getRolePermissions(role) {
   const normalizedRole = VALID_ROLES.includes(role) ? role : ROLES.VIEWER;
   return PERMISSIONS[normalizedRole] || PERMISSIONS[ROLES.VIEWER];
 }
 
 /**
- * Get role display name in Arabic
- * @param {string} role - Role code
- * @returns {string} Arabic role name
- */
-export function getRoleDisplayName(role) {
-  const names = {
-    [ROLES.ADMIN]: 'مدير عام',
-    [ROLES.CONTENT_MANAGER]: 'مدير المحتوى',
-    [ROLES.CONTENT_SPECIALIST]: 'أخصائي محتوى',
-    [ROLES.VIEWER]: 'مشاهد',
-  };
-  return names[role] || 'مشاهد';
-}
-
-/**
- * Get role badge color classes
- * @param {string} role - Role code
- * @returns {string} Tailwind CSS classes
- */
-export function getRoleBadgeColor(role) {
-  const colors = {
-    [ROLES.ADMIN]: 'bg-purple-100 text-purple-700 border-purple-200',
-    [ROLES.CONTENT_MANAGER]: 'bg-blue-100 text-blue-700 border-blue-200',
-    [ROLES.CONTENT_SPECIALIST]: 'bg-green-100 text-green-700 border-green-200',
-    [ROLES.VIEWER]: 'bg-gray-100 text-gray-700 border-gray-200',
-  };
-  return colors[role] || colors[ROLES.VIEWER];
-}
-
-/**
- * Navigation items with required permissions
- */
-export const NAVIGATION_PERMISSIONS = {
-  '/dashboard': { resource: 'dashboard', action: 'read' },
-  '/articles': { resource: 'articles', action: 'list' },
-  '/news': { resource: 'news', action: 'list' },
-  '/tweets': { resource: 'tweets', action: 'list' },
-  '/sections': { resource: 'sections', action: 'list' },
-  '/tags': { resource: 'tags', action: 'list' },
-  '/users': { resource: 'users', action: 'list' },
-  '/settings': { resource: 'settings', action: 'read' },
-  '/insights': { resource: 'analytics', action: 'read' },
-  '/comments': { resource: 'comments', action: 'list' },
-  '/ai-content': { resource: 'articles', action: 'create' },
-};
-
-/**
- * Check if user can access a navigation route
- * @param {string} role - User role
- * @param {string} path - Route path
+ * Validate role value
+ * @param {string} role - Role to validate
  * @returns {boolean}
  */
-export function canAccessRoute(role, path) {
-  const permission = NAVIGATION_PERMISSIONS[path];
-  if (!permission) {
-    return true; // Allow access to routes without explicit permission
-  }
-  return canPerform(role, permission.resource, permission.action);
+function isValidRole(role) {
+  return VALID_ROLES.includes(role);
 }
 
-export default {
+module.exports = {
   ROLES,
   VALID_ROLES,
+  PERMISSIONS,
+  getUserRole,
+  getUserId,
+  getUserEmail,
   hasPermission,
   canPerform,
   isOwnershipBased,
-  canPerformOnResource,
-  canPublish,
   getRolePermissions,
-  getRoleDisplayName,
-  getRoleBadgeColor,
-  canAccessRoute,
-  NAVIGATION_PERMISSIONS,
+  isValidRole,
 };
