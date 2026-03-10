@@ -12,21 +12,13 @@ Parameters:
       - production
     Description: Environment name
   
-  DBSecretArn:
-    Type: String
-    Description: ARN of the Secrets Manager secret containing database credentials
-  
   VpcId:
     Type: String
     Description: VPC ID where RDS is located
   
   SubnetIds:
     Type: CommaDelimitedList
-    Description: Comma-separated list of subnet IDs for Lambda functions
-  
-  RDSSecurityGroupId:
-    Type: String
-    Description: Security group ID of the RDS instance
+    Description: Comma-separated list of subnet IDs for Lambda functions and RDS
 
 Globals:
   Function:
@@ -35,7 +27,7 @@ Globals:
     MemorySize: 512
     Environment:
       Variables:
-        DB_SECRET_ARN: !Ref DBSecretArn
+        DB_SECRET_ARN: !Ref DatabaseSecret
         NODE_ENV: !Ref Environment
     Tags:
       projectName: s7abt
@@ -45,7 +37,7 @@ Globals:
   Api:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With'"
       AllowOrigin: "'*'"
 
 Resources:
@@ -53,7 +45,6 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub s7abt-lambda-role-${Environment}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -71,7 +62,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Ref DBSecretArn
+                Resource: !Ref DatabaseSecret
         - PolicyName: CloudWatchLogs
           PolicyDocument:
             Version: '2012-10-17'
@@ -94,7 +85,6 @@ Resources:
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub s7abt-lambda-sg-${Environment}
       GroupDescription: Security group for S7abt Lambda functions
       VpcId: !Ref VpcId
       Tags:
@@ -107,16 +97,82 @@ Resources:
         - Key: ManagedBy
           Value: CloudFormation
 
-  # ==================== RDS Ingress Rule ====================
-  RDSIngressFromLambda:
-    Type: AWS::EC2::SecurityGroupIngress
+  # ==================== Database ====================
+  DatabaseSecret:
+    Type: AWS::SecretsManager::Secret
     Properties:
-      GroupId: !Ref RDSSecurityGroupId
-      IpProtocol: tcp
-      FromPort: 3306
-      ToPort: 3306
-      SourceSecurityGroupId: !Ref LambdaSecurityGroup
-      Description: Allow Lambda functions to access RDS
+      Name: !Sub s7abt/database/credentials-${Environment}
+      Description: !Sub Database credentials for ${Environment}
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: "\"/@"
+      Tags:
+        - Key: projectName
+          Value: s7abt
+        - Key: Environment
+          Value: !Ref Environment
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS instance
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          Description: Allow Lambda access
+      Tags:
+        - Key: Name
+          Value: !Sub s7abt-rds-sg-${Environment}
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub Subnet group for ${Environment}
+      SubnetIds: !Ref SubnetIds
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: mysql
+      EngineVersion: "8.0.44"
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      DBName: s7abt_dubai
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      MasterUsername: 
+        !Join [ "", [ "{{resolve:secretsmanager:", !Ref DatabaseSecret, ":SecretString:username}}" ] ]
+      MasterUserPassword: 
+        !Join [ "", [ "{{resolve:secretsmanager:", !Ref DatabaseSecret, ":SecretString:password}}" ] ]
+      Tags:
+        - Key: projectName
+          Value: s7abt
+
+  SecretRDSAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref DatabaseSecret
+      TargetId: !Ref RDSInstance
+      TargetType: AWS::RDS::DBInstance
+
+  # ==================== VPC Endpoints ====================
+  SecretsManagerVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
 
   # ==================== API Gateway ====================
   S7abtApi:
@@ -124,6 +180,11 @@ Resources:
     Properties:
       Name: !Sub s7abt-api-${Environment}
       StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With'"
+        AllowOrigin: "'*'"
+        AllowCredentials: false
       Tags:
         projectName: s7abt
         Environment: !Ref Environment
@@ -342,6 +403,33 @@ Resources:
             RestApiId: !Ref S7abtApi
             Path: /users/{id}/articles
             Method: GET
+
+  # ==================== DATABASE INIT FUNCTION ====================
+  InitDatabaseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub s7abt-init-database-${Environment}
+      CodeUri: database/
+      Handler: lambda-init.handler
+      Timeout: 60
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Events:
+        InitDb:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S7abtApi
+            Path: /admin/init-db
+            Method: POST
+
+  InitDatabaseLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/s7abt-init-database-${Environment}
+      RetentionInDays: 7
 
   # ==================== CLOUDWATCH LOG GROUPS ====================
   ListArticlesLogGroup:

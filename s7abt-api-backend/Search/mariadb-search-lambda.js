@@ -278,8 +278,8 @@ exports.handler = async (event) => {
         const searchQuery = buildSearchQuery(searchTerm, limit, offset, scope);
         const countQuery = buildCountQuery(searchTerm, scope);
 
-        const [rows] = await connection.execute(searchQuery.sql, searchQuery.params);
-        const [[countResult]] = await connection.execute(countQuery.sql, countQuery.params);
+        const [rows] = await connection.query(searchQuery.sql, searchQuery.params);
+        const [[countResult]] = await connection.query(countQuery.sql, countQuery.params);
         const total = countResult.total;
 
         // Format results with snippet extraction

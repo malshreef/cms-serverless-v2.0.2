@@ -15,7 +15,7 @@ exports.handler = async (event) => {
     const articleId = event.pathParameters?.id;
 
     if (!articleId) {
-      return error('Article ID is required', null, 400);
+      return error('Article ID is required', 400);
     }
 
     // Parse request body
@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     try {
       body = JSON.parse(event.body || '{}');
     } catch (e) {
-      return error('Invalid JSON body', null, 400);
+      return error('Invalid JSON body', 400);
     }
 
     const { platform } = body;
@@ -31,7 +31,7 @@ exports.handler = async (event) => {
     // Validate platform
     const validPlatforms = ['twitter', 'linkedin', 'whatsapp', 'copy'];
     if (!platform || !validPlatforms.includes(platform)) {
-      return error(`Invalid platform. Must be one of: ${validPlatforms.join(', ')}`, null, 400);
+      return error(`Invalid platform. Must be one of: ${validPlatforms.join(', ')}`, 400);
     }
 
     connection = await db.getConnection();
@@ -44,7 +44,7 @@ exports.handler = async (event) => {
 
     if (articles.length === 0) {
       await connection.end();
-      return error('Article not found', null, 404);
+      return error('Article not found', 404);
     }
 
     // Get client info for analytics
@@ -102,6 +102,6 @@ exports.handler = async (event) => {
     if (connection) {
       await connection.end();
     }
-    return error('Failed to record share', err.message);
+    return error('Failed to record share', 500, err.message);
   }
 };

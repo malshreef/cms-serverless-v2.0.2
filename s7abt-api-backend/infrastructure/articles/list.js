@@ -163,6 +163,6 @@ exports.handler = async (event) => {
     
   } catch (err) {
     console.error('Error:', err);
-    return error('Failed to fetch articles', err.message);
+    return error('Failed to fetch articles', 500, err.message);
   }
 };

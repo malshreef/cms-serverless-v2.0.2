@@ -1,1 +1,1 @@
-{"statusCode":200,"body":"{\"success\":true,\"message\":\"Tweet posted successfully\",\"posted\":true,\"tweet_id\":\"014c0c40-0437-49af-a017-0c82433ef0f3\",\"twitter_tweet_id\":\"1979588249862713725\",\"twitter_url\":\"https://twitter.com/user/status/1979588249862713725\",\"article_title\":\"test\",\"sequence\":8}"}
+{"statusCode":500,"headers":{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"},"body":"{\"success\":false,\"error\":\"\"}"}

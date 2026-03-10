@@ -9,13 +9,11 @@ const { success, error } = require('../shared/response');
 exports.handler = async (event) => {
   console.log('Share Event:', JSON.stringify(event, null, 2));
 
-  let connection;
-
   try {
     const articleId = event.pathParameters?.id;
 
     if (!articleId) {
-      return error('Article ID is required', null, 400);
+      return error('Article ID is required', 400);
     }
 
     // Parse request body
@@ -23,7 +21,7 @@ exports.handler = async (event) => {
     try {
       body = JSON.parse(event.body || '{}');
     } catch (e) {
-      return error('Invalid JSON body', null, 400);
+      return error('Invalid JSON body', 400);
     }
 
     const { platform } = body;
@@ -31,36 +29,27 @@ exports.handler = async (event) => {
     // Validate platform
     const validPlatforms = ['twitter', 'linkedin', 'whatsapp', 'copy'];
     if (!platform || !validPlatforms.includes(platform)) {
-      return error(`Invalid platform. Must be one of: ${validPlatforms.join(', ')}`, null, 400);
+      return error(`Invalid platform. Must be one of: ${validPlatforms.join(', ')}`, 400);
     }
 
-    connection = await db.getConnection();
-
     // Verify article exists
-    const [articles] = await connection.execute(
-      'SELECT s7b_article_id FROM s7b_article WHERE s7b_article_id = ? AND s7b_article_active = 1',
+    const articles = await db.query(
+      'SELECT s7b_article_id FROM s7b_article WHERE s7b_article_id = ? AND s7b_article_active = 1 AND s7b_article_deleted_at IS NULL',
       [articleId]
     );
 
     if (articles.length === 0) {
-      await connection.end();
-      return error('Article not found', null, 404);
+      return error('Article not found', 404);
     }
-
-    // Get client info for analytics
-    const clientIp = event.requestContext?.identity?.sourceIp ||
-                     event.headers?.['X-Forwarded-For']?.split(',')[0]?.trim() ||
-                     null;
-    const userAgent = event.headers?.['User-Agent'] || event.headers?.['user-agent'] || null;
 
     // Insert share record
     const insertQuery = `
       INSERT INTO s7b_article_shares
-        (s7b_article_id, s7b_share_platform, s7b_share_ip, s7b_share_user_agent)
-      VALUES (?, ?, ?, ?)
+        (s7b_article_id, s7b_share_platform)
+      VALUES (?, ?)
     `;
 
-    await connection.execute(insertQuery, [articleId, platform, clientIp, userAgent?.substring(0, 500)]);
+    await db.rawQuery(insertQuery, [articleId, platform]);
 
     // Get updated share counts for this article
     const statsQuery = `
@@ -72,7 +61,7 @@ exports.handler = async (event) => {
       GROUP BY s7b_share_platform
     `;
 
-    const [stats] = await connection.execute(statsQuery, [articleId]);
+    const stats = await db.query(statsQuery, [articleId]);
 
     // Format stats
     const shareStats = {
@@ -88,8 +77,6 @@ exports.handler = async (event) => {
       shareStats.total += parseInt(row.count);
     });
 
-    await connection.end();
-
     return success({
       message: 'Share recorded successfully',
       articleId: parseInt(articleId),
@@ -99,9 +86,6 @@ exports.handler = async (event) => {
 
   } catch (err) {
     console.error('Error recording share:', err);
-    if (connection) {
-      await connection.end();
-    }
-    return error('Failed to record share', err.message);
+    return error('Failed to record share', 500, err.message);
   }
 };

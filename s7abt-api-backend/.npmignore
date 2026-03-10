@@ -1,0 +1,8 @@
+.aws-sam/
+.git/
+.vscode/
+coverage/
+test-reports/
+infrastructure/
+build/
+*.log

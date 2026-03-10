@@ -8,7 +8,7 @@ exports.handler = async (event) => {
     const articleId = event.pathParameters?.id;
     
     if (!articleId) {
-      return error('Article ID is required', null, 400);
+      return error('Article ID is required', 400);
     }
     
     const connection = await db.getConnection();
@@ -52,7 +52,7 @@ exports.handler = async (event) => {
     
     if (articles.length === 0) {
       await connection.end();
-      return error('Article not found', null, 404);
+      return error('Article not found', 404);
     }
     
     const article = articles[0];
@@ -72,21 +72,23 @@ exports.handler = async (event) => {
     
     // Get comments for this article
     const commentsQuery = `
-      SELECT 
+      SELECT
         s7b_comment_id as id,
         s7b_comment_user_name as authorName,
-        s7b_comment_user_email as authorEmail,
         s7b_comment_body as body,
-        s7b_comment_image as authorImage,
-        s7b_comment_add_date as createdAt,
-        s7b_comment_active as active
+        s7b_comment_add_date as createdAt
       FROM s7b_comment
-      WHERE s7b_article_id = ? AND s7b_comment_active = 1
+      WHERE s7b_article_id = ? AND s7b_comment_active = 1 AND s7b_comment_deleted_at IS NULL
       ORDER BY s7b_comment_add_date DESC
     `;
-    
-    const [comments] = await connection.execute(commentsQuery, [articleId]);
-    article.comments = comments;
+
+    try {
+      const [comments] = await connection.execute(commentsQuery, [articleId]);
+      article.comments = comments;
+    } catch (commentErr) {
+      console.log('Comments query failed:', commentErr.message);
+      article.comments = [];
+    }
 
     // Get share statistics for this article
     const shareStatsQuery = `
@@ -132,6 +134,6 @@ exports.handler = async (event) => {
     
   } catch (err) {
     console.error('Error:', err);
-    return error('Failed to fetch article', err.message);
+    return error('Failed to fetch article', 500, err.message);
   }
 };

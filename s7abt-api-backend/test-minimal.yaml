@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Minimal test template
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: VPC ID
+  SubnetIds:
+    Type: CommaDelimitedList
+    Description: Subnet IDs
+
+Resources:
+  TestSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Test security group
+      VpcId: !Ref VpcId
+
+Outputs:
+  SecurityGroupId:
+    Value: !Ref TestSecurityGroup
