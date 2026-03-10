@@ -16,7 +16,7 @@ exports.handler = async (event) => {
       return response.validationError([{ field: 'id', message: 'Article ID is required' }]);
     }
 
-    // Check if article exists
+    // Check if article exists (use deleted_at for soft delete, not active which is publish status)
     const existingArticle = await db.queryOne(
       'SELECT s7b_article_id, s7b_article_title, s7b_user_id FROM s7b_article WHERE s7b_article_id = ? AND s7b_article_deleted_at IS NULL',
       [articleId]
@@ -40,9 +40,9 @@ exports.handler = async (event) => {
       return auth.response;
     }
 
-    // Soft delete the article
+    // Soft delete the article by setting deleted_at timestamp
     const sql = `
-      UPDATE s7b_article 
+      UPDATE s7b_article
       SET s7b_article_deleted_at = NOW()
       WHERE s7b_article_id = ? AND s7b_article_deleted_at IS NULL
     `;

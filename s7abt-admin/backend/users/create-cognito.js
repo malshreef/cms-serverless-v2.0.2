@@ -2,7 +2,7 @@ const { CognitoIdentityProviderClient, AdminCreateUserCommand, AdminSetUserPassw
 const db = require('./shared/db');
 const { success: successResponse, error: errorResponse } = require('./shared/response');
 
-const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'me-central-1' });
+const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION });
 const USER_POOL_ID = process.env.USER_POOL_ID;
 
 /**
@@ -66,8 +66,8 @@ exports.handler = async (event) => {
 
     try {
       // Check if email already exists in database
-      const [existingUsers] = await connection.execute(
-        'SELECT s7b_user_id FROM s7b_user WHERE s7b_user_email = ? AND s7b_user_deleted_at IS NULL',
+      const [existingUsers] = await connection.query(
+        'SELECT s7b_user_id FROM s7b_user WHERE s7b_user_email = ? AND s7b_user_active = 1',
         [email]
       );
 
@@ -108,7 +108,7 @@ exports.handler = async (event) => {
 
       // Step 3: Create user in database
       console.log('Creating user in database...');
-      const [result] = await connection.execute(
+      const [result] = await connection.query(
         `INSERT INTO s7b_user (
           s7b_user_username,
           s7b_user_password,
@@ -131,7 +131,7 @@ exports.handler = async (event) => {
       console.log('Database user created with ID:', userId);
 
       // Fetch the created user
-      const [users] = await connection.execute(
+      const [users] = await connection.query(
         `SELECT 
           s7b_user_id as id,
           s7b_user_email as email,

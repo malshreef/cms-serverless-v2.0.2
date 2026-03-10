@@ -103,7 +103,7 @@ async function getConnection() {
 async function query(sql, params = []) {
   try {
     const connection = await getConnection();
-    const [rows] = await connection.execute(sql, params);
+    const [rows] = await connection.query(sql, params);
     return rows;
   } catch (error) {
     console.error('❌ Query error:', error);
@@ -117,7 +117,7 @@ async function query(sql, params = []) {
 async function queryOne(sql, params = []) {
   try {
     const connection = await getConnection();
-    const [rows] = await connection.execute(sql, params);
+    const [rows] = await connection.query(sql, params);
     return rows.length > 0 ? rows[0] : null;
   } catch (error) {
     console.error('❌ QueryOne error:', error);

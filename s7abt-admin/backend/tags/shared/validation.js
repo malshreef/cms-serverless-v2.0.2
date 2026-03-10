@@ -72,15 +72,16 @@ function validateEnum(value, fieldName, allowedValues) {
 
 /**
  * Generate slug from text
+ * Supports Arabic, English, and other Unicode characters
  */
 function generateSlug(text) {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '') // Remove special characters
-    .replace(/\s+/g, '-')      // Replace spaces with hyphens
-    .replace(/-+/g, '-')       // Replace multiple hyphens with single hyphen
-    .replace(/^-+|-+$/g, '');  // Remove leading/trailing hyphens
+    .replace(/[^\p{L}\p{N}\s-]/gu, '') // Keep letters (including Arabic), numbers, spaces, hyphens
+    .replace(/\s+/g, '-')               // Replace spaces with hyphens
+    .replace(/-+/g, '-')                // Replace multiple hyphens with single hyphen
+    .replace(/^-+|-+$/g, '');           // Remove leading/trailing hyphens
 }
 
 /**

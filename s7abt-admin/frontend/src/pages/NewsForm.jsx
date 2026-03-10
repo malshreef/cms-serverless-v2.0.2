@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { isOwnershipBased } from '../lib/permissions';
 
 const NewsForm = () => {
   const { id } = useParams();
@@ -75,7 +76,16 @@ const NewsForm = () => {
       }
       
       console.log('Parsed news data:', newsData);
-      
+
+      // Ownership check: content_specialist can only edit their own news
+      if (isOwnershipBased(user?.role, 'news', 'update')) {
+        if (String(newsData.userId) !== String(user?.dbUserId)) {
+          setError('ليس لديك صلاحية تعديل هذا الخبر');
+          navigate('/news');
+          return;
+        }
+      }
+
       setFormData({
         title: newsData.title || '',
         brief: newsData.brief || '',

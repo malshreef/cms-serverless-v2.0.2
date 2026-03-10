@@ -21,6 +21,8 @@ import Settings from './pages/Settings';
 import Insights from './pages/Insights';
 import Users from './pages/Users';
 import UserForm from './pages/UserForm';
+import AIContent from './pages/AIContent';
+import Comments from './pages/Comments';
 
 
 function App() {
@@ -57,6 +59,20 @@ function App() {
             <Route path="tweets/generate" element={
               <ProtectedRoute permPath="/tweets">
                 <TweetGenerate />
+              </ProtectedRoute>
+            } />
+
+            {/* AI Content - Protected */}
+            <Route path="ai-content" element={
+              <ProtectedRoute permPath="/ai-content">
+                <AIContent />
+              </ProtectedRoute>
+            } />
+
+            {/* Comments - Protected */}
+            <Route path="comments" element={
+              <ProtectedRoute permPath="/comments">
+                <Comments />
               </ProtectedRoute>
             } />
 

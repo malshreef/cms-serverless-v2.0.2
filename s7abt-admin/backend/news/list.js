@@ -74,7 +74,7 @@ exports.handler = async (event) => {
 
     params.push(parseInt(limit), parseInt(offset));
 
-    const news = await db.query(query, params);
+    const news = await db.rawQuery(query, params);
 
     // Calculate pagination info
     const totalPages = Math.ceil(total / limit);

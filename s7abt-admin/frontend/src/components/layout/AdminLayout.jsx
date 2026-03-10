@@ -9,12 +9,14 @@ import {
   Tag,
   Layers,
   MessageSquare,
+  MessageCircle,
   Users,
   Settings,
   Bell,
   Search,
   LogOut,
   BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import cloudIcon from '../../assets/cloud-icon.png';
 
@@ -29,8 +31,11 @@ const AdminLayout = () => {
     { name: 'الأخبار', href: '/news', icon: Newspaper, permPath: '/news' },
     { name: 'الوسوم', href: '/tags', icon: Tag, permPath: '/tags' },
     { name: 'الأقسام', href: '/sections', icon: Layers, permPath: '/sections' },
+    { name: 'التعليقات', href: '/comments', icon: MessageCircle, permPath: '/comments' },
     { name: 'التغريدات', href: '/tweets', icon: MessageSquare, permPath: '/tweets' },
+    { name: 'المحتوى الذكي', href: '/ai-content', icon: Sparkles, permPath: '/ai-content' },
     { name: 'المستخدمين', href: '/users', icon: Users, permPath: '/users' },
+    { name: 'الإعدادات', href: '/settings', icon: Settings, permPath: '/settings' },
     { name: 'التحليلات', href: '/insights', icon: BarChart3, permPath: '/insights' },
   ];
 
@@ -157,7 +162,7 @@ const AdminLayout = () => {
       </div>
 
       {/* Main Content */}
-      <div className="mr-64 mt-16 p-8">
+      <div className="mr-64 mt-16 p-8 pb-20">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-cta"></div>
@@ -167,6 +172,13 @@ const AdminLayout = () => {
         ) : (
           <Outlet />
         )}
+      </div>
+
+      {/* Footer */}
+      <div className="mr-64 border-t border-border-blue bg-cloud-white py-4 px-8 text-center">
+        <p className="text-muted-blue text-xs font-rubik">
+          Developed with Love by M.alshreef@gmail.com and Claude.ai
+        </p>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ const { CognitoIdentityProviderClient, AdminDeleteUserCommand } = require('@aws-
 const db = require('./shared/db');
 const { success: successResponse, error: errorResponse } = require('./shared/response');
 
-const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'me-central-1' });
+const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION });
 const USER_POOL_ID = process.env.USER_POOL_ID;
 
 /**
@@ -34,14 +34,14 @@ exports.handler = async (event) => {
 
     try {
       // Get user to delete
-      const [users] = await connection.execute(
+      const [users] = await connection.query(
         `SELECT 
           s7b_user_id as id,
           s7b_user_email as email,
           s7b_user_role as role,
           s7b_user_cognito_id as cognitoId
         FROM s7b_user 
-        WHERE s7b_user_id = ? AND s7b_user_deleted_at IS NULL`,
+        WHERE s7b_user_id = ? AND s7b_user_active = 1`,
         [userId]
       );
 
@@ -58,8 +58,8 @@ exports.handler = async (event) => {
 
       // Check if this is the last admin
       if (userToDelete.role === 'admin') {
-        const [adminCount] = await connection.execute(
-          'SELECT COUNT(*) as count FROM s7b_user WHERE s7b_user_role = ? AND s7b_user_deleted_at IS NULL',
+        const [adminCount] = await connection.query(
+          'SELECT COUNT(*) as count FROM s7b_user WHERE s7b_user_role = ? AND s7b_user_active = 1',
           ['admin']
         );
 
@@ -69,12 +69,12 @@ exports.handler = async (event) => {
       }
 
       // Check if user has content (articles or news)
-      const [articleCount] = await connection.execute(
+      const [articleCount] = await connection.query(
         'SELECT COUNT(*) as count FROM s7b_article WHERE s7b_user_id = ? AND s7b_article_deleted_at IS NULL',
         [userId]
       );
 
-      const [newsCount] = await connection.execute(
+      const [newsCount] = await connection.query(
         'SELECT COUNT(*) as count FROM s7b_news WHERE s7b_user_id = ? AND s7b_news_deleted_at IS NULL',
         [userId]
       );
@@ -108,8 +108,8 @@ exports.handler = async (event) => {
 
       // Step 2: Soft delete from database
       console.log('Soft deleting user from database...');
-      await connection.execute(
-        'UPDATE s7b_user SET s7b_user_deleted_at = NOW() WHERE s7b_user_id = ?',
+      await connection.query(
+        'UPDATE s7b_user SET s7b_user_active = 0 WHERE s7b_user_id = ?',
         [userId]
       );
 

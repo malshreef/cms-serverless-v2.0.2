@@ -2,7 +2,7 @@
  * Utility functions for handling S3 images
  */
 
-const S3_BASE_URL = import.meta.env.VITE_S3_BASE_URL || 'https://<your-s3-bucket>.s3.me-central-1.amazonaws.com';
+const S3_BASE_URL = import.meta.env.VITE_S3_BASE_URL || 'https://<your-s3-bucket>.s3.<your-region>.amazonaws.com';
 
 /**
  * Build full S3 URL from image key

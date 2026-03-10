@@ -144,5 +144,19 @@ export const usersAPI = {
   delete: (id) => api.delete(`/admin/users/${id}`),
 };
 
+export const commentsAPI = {
+  list: (params) => api.get('/admin/comments', { params }),
+  updateStatus: (id, data) => api.patch(`/admin/comments/${id}/status`, data),
+  delete: (id) => api.delete(`/admin/comments/${id}`),
+};
+
+export const aiContentAPI = {
+  listTopics: (params) => api.get('/admin/ai-content/topics', { params }),
+  createTopic: (data) => api.post('/admin/ai-content/topics', data),
+  updateTopic: (id, data) => api.put(`/admin/ai-content/topics/${id}`, data),
+  generateContent: (id) => api.post(`/admin/ai-content/topics/${id}/generate`),
+  suggestTopics: () => api.post('/admin/ai-content/suggest'),
+};
+
 export default api;
 

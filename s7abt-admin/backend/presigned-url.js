@@ -3,7 +3,10 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { success, error } = require('../shared/response');
 const crypto = require('crypto');
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION || 'me-central-1' });
+if (!process.env.AWS_REGION) {
+  throw new Error('AWS_REGION environment variable is not set');
+}
+const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const BUCKET_NAME = process.env.MEDIA_BUCKET_NAME || 's7abt-media';
 
 /**
@@ -52,7 +55,7 @@ exports.handler = async (event) => {
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
 
     // Construct the final public URL (after upload)
-    const publicUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'me-central-1'}.amazonaws.com/${s3Key}`;
+    const publicUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 
     return success({
       uploadUrl: presignedUrl,
