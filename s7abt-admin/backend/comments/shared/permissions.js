@@ -85,6 +85,13 @@ const PERMISSIONS = {
       read: true,
       update: true,
     },
+    // Comments
+    comments: {
+      read: true,
+      update: true,
+      delete: true,
+      list: true,
+    },
     // Analytics
     analytics: {
       read: true,
@@ -143,6 +150,13 @@ const PERMISSIONS = {
       list: true,
       publish: true,
     },
+    // Comments
+    comments: {
+      read: true,
+      update: true,
+      delete: true,
+      list: true,
+    },
     // Settings - No access
     settings: {
       read: false,
@@ -192,6 +206,13 @@ const PERMISSIONS = {
     // Tags - Read only
     tags: {
       create: false,
+      read: true,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    // Comments - Read only
+    comments: {
       read: true,
       update: false,
       delete: false,
@@ -255,6 +276,13 @@ const PERMISSIONS = {
     // Tags - Read only
     tags: {
       create: false,
+      read: true,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    // Comments - Read only
+    comments: {
       read: true,
       update: false,
       delete: false,

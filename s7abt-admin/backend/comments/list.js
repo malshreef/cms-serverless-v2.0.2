@@ -1,11 +1,15 @@
 const db = require('./shared/db');
 const { success, error } = require('./shared/response');
+const { checkAuthorization } = require('./shared/authorize');
 
 /**
  * List all comments with filtering and pagination
  */
 exports.handler = async (event) => {
   console.log('List comments request:', JSON.stringify(event, null, 2));
+
+  const authError = checkAuthorization(event, 'comments', 'list');
+  if (authError) return authError;
 
   try {
     const queryParams = event.queryStringParameters || {};

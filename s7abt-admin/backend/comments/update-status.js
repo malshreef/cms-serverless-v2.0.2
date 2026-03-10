@@ -1,11 +1,15 @@
 const db = require('./shared/db');
 const { success, error, badRequest, notFound } = require('./shared/response');
+const { checkAuthorization } = require('./shared/authorize');
 
 /**
  * Update comment status (approve/reject)
  */
 exports.handler = async (event) => {
   console.log('Update comment status request:', JSON.stringify(event, null, 2));
+
+  const authError = checkAuthorization(event, 'comments', 'update');
+  if (authError) return authError;
 
   try {
     const commentId = event.pathParameters?.id;

@@ -1,11 +1,15 @@
 const db = require('./shared/db');
 const { success, error, badRequest, notFound } = require('./shared/response');
+const { checkAuthorization } = require('./shared/authorize');
 
 /**
  * Soft delete a comment
  */
 exports.handler = async (event) => {
   console.log('Delete comment request:', JSON.stringify(event, null, 2));
+
+  const authError = checkAuthorization(event, 'comments', 'delete');
+  if (authError) return authError;
 
   try {
     const commentId = event.pathParameters?.id;
