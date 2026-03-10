@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { searchApi } from '@/lib/api/client';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -10,7 +10,7 @@ import SearchResultCard from '@/components/search/SearchResultCard';
 import Pagination from '@/components/search/Pagination';
 import SearchFiltersSidebar from '@/components/search/SearchFiltersSidebar';
 
-export default function AdvancedSearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const locale = useLocale();
@@ -59,25 +59,25 @@ export default function AdvancedSearchPage() {
         
         // Apply category filter
         if (selectedCategories.length > 0) {
-          filteredArticles = filteredArticles.filter(article => 
-            article.sections?.some((section: any) => 
+          filteredArticles = filteredArticles.filter((article: any) =>
+            article.sections?.some((section: any) =>
               selectedCategories.includes(section.s7b_section_id)
             )
           );
         }
-        
+
         // Apply author filter
         if (selectedAuthors.length > 0) {
-          filteredArticles = filteredArticles.filter(article => 
+          filteredArticles = filteredArticles.filter((article: any) =>
             selectedAuthors.includes(article.s7b_user_id)
           );
         }
-        
+
         // Apply date range filter
         if (dateRange !== 'all') {
           const now = new Date();
           const filterDate = new Date();
-          
+
           switch (dateRange) {
             case 'day':
               filterDate.setDate(now.getDate() - 1);
@@ -92,8 +92,8 @@ export default function AdvancedSearchPage() {
               filterDate.setFullYear(now.getFullYear() - 1);
               break;
           }
-          
-          filteredArticles = filteredArticles.filter(article => 
+
+          filteredArticles = filteredArticles.filter((article: any) =>
             new Date(article.s7b_article_add_date) >= filterDate
           );
         }
@@ -101,43 +101,43 @@ export default function AdvancedSearchPage() {
         // Apply sorting
         switch (sortBy) {
           case 'newest':
-            filteredArticles.sort((a, b) => 
+            filteredArticles.sort((a: any, b: any) =>
               new Date(b.s7b_article_add_date).getTime() - new Date(a.s7b_article_add_date).getTime()
             );
             break;
           case 'oldest':
-            filteredArticles.sort((a, b) => 
+            filteredArticles.sort((a: any, b: any) =>
               new Date(a.s7b_article_add_date).getTime() - new Date(b.s7b_article_add_date).getTime()
             );
             break;
           case 'most_read':
-            filteredArticles.sort((a, b) => (b.views || 0) - (a.views || 0));
+            filteredArticles.sort((a: any, b: any) => (b.views || 0) - (a.views || 0));
             break;
         }
-        
+
         setArticles(filteredArticles);
         setTotal(filteredArticles.length);
         setTotalPages(Math.ceil(filteredArticles.length / resultsPerPage));
-        
+
         // Extract unique categories and authors for filters
         const uniqueCategories = new Map();
         const uniqueAuthors = new Map();
-        
-        result.articles.forEach(article => {
+
+        result.articles.forEach((article: any) => {
           article.sections?.forEach((section: any) => {
             const count = uniqueCategories.get(section.s7b_section_id) || 0;
             uniqueCategories.set(section.s7b_section_id, count + 1);
           });
-          
+
           if (article.s7b_user_id) {
             const count = uniqueAuthors.get(article.s7b_user_id) || 0;
             uniqueAuthors.set(article.s7b_user_id, count + 1);
           }
         });
-        
+
         setCategories(
           Array.from(uniqueCategories.entries()).map(([id, count]) => {
-            const article = result.articles.find(a => 
+            const article = result.articles.find((a: any) =>
               a.sections?.some((s: any) => s.s7b_section_id === id)
             );
             const section = article?.sections?.find((s: any) => s.s7b_section_id === id);
@@ -148,10 +148,10 @@ export default function AdvancedSearchPage() {
             };
           })
         );
-        
+
         setAuthors(
           Array.from(uniqueAuthors.entries()).map(([id, count]) => {
-            const article = result.articles.find(a => a.s7b_user_id === id);
+            const article = result.articles.find((a: any) => a.s7b_user_id === id);
             return {
               id,
               name: article?.s7b_user_name || 'كاتب مجهول',
@@ -393,3 +393,18 @@ export default function AdvancedSearchPage() {
   );
 }
 
+export default function AdvancedSearchPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-white">
+        <Header />
+        <div className="flex justify-center items-center py-32">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-cta"></div>
+        </div>
+        <Footer />
+      </main>
+    }>
+      <SearchPageContent />
+    </Suspense>
+  );
+}

@@ -20,7 +20,7 @@ export default async function Vision2030Page({ params }: Vision2030PageProps) {
   
   try {
     // Search for articles with Vision 2030 tags using the new dedicated Tags API
-    const tags = ['vision2030', 'رؤية-السعودية-2030', 'رؤية-2030', 'vision-2030'];
+    const tags = ['Vision 2030', 'vision2030', 'رؤية-السعودية-2030', 'رؤية-2030', 'vision-2030'];
     
     console.log('Vision 2030 Page: Fetching articles with tags:', tags);
     
@@ -164,7 +164,7 @@ export default async function Vision2030Page({ params }: Vision2030PageProps) {
 
             {articles.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {articles.map((article) => (
+                {articles.map((article: any) => (
                   <ArticleCard
                     key={article.s7b_article_id}
                     article={article}

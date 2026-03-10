@@ -79,6 +79,8 @@
     "content": "Content",
     "allArticles": "All Articles",
     "categories": "Categories",
+    "sections": "Sections",
+    "news": "News",
     "contributors": "Contributors",
     "featured": "Featured",
     "community": "Community",
@@ -94,7 +96,8 @@
     "termsOfService": "Terms of Service",
     "rights": "All rights reserved.",
     "tags": "Tags",
-    "vision2030": "Vision 2030"
+    "vision2030": "Vision 2030",
+    "developedWith": "Developed with Love by {email} and {claude}"
   },
   "contactPage": {
     "hero": {

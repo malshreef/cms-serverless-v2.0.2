@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // --- Configuration ---
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com';
-const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com';
+const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com';
 
 // --- Axios Clients ---
 const apiClient = axios.create({
@@ -36,6 +36,7 @@ export interface Article {
   s7b_user_linkedin?: string;
   reading_time?: number;
   premium?: boolean;
+  snippet?: string;
   sections?: Section[];
   tags?: Tag[];
   comments?: Comment[];
@@ -169,7 +170,7 @@ function mapArticle(apiArticle: any): Article {
   // Map comments
   const comments = (apiArticle.comments || []).map((comment: any) => ({
     s7b_comment_id: comment.id,
-    s7b_comment_user_name: comment.userName || comment.user_name || 'Anonymous',
+    s7b_comment_user_name: comment.authorName || comment.userName || comment.user_name || 'Anonymous',
     s7b_comment_body: comment.body || comment.content || '',
     s7b_comment_add_date: comment.createdAt || comment.created_at || '',
   }));
@@ -219,7 +220,7 @@ function mapNews(apiNews: any): News {
     s7b_news_brief: apiNews.brief || apiNews.excerpt || apiNews.s7b_news_brief || '',
     s7b_news_body: apiNews.body || apiNews.content || apiNews.s7b_news_body || '',
     s7b_news_image: apiNews.image || apiNews.mainImage || apiNews.s7b_news_image || '',
-    s7b_news_add_date: apiNews.createdAt || apiNews.created_at || apiNews.s7b_news_add_date || '',
+    s7b_news_add_date: apiNews.createdAt || apiNews.addDate || apiNews.created_at || apiNews.s7b_news_add_date || '',
   };
 }
 
@@ -333,6 +334,15 @@ export const articlesApi = {
   },
 };
 
+// Comments API (uses main client)
+export const commentsApi = {
+  create: async (articleId: number, data: { userName: string; email: string; commentBody: string }) => {
+    const response = await apiClient.post(`/articles/${articleId}/comments`, data);
+    const apiData = response.data.data || response.data;
+    return apiData;
+  },
+};
+
 // Sections API (uses main client)
 export const sectionsApi = {
   getAll: async () => {
@@ -391,7 +401,7 @@ export const sectionsApi = {
       console.warn(`Section ${id} API failed, using fallback from sections list`);
       try {
         const { sections } = await sectionsApi.getAll();
-        const section = sections.find(s => s.s7b_section_id === parseInt(String(id), 10));
+        const section = sections.find((s: Section) => s.s7b_section_id === parseInt(String(id), 10));
         if (section) {
           return { section };
         }
@@ -497,7 +507,7 @@ export const writersApi = {
       console.log('Fetching top writers...');
 
       // Use the dedicated GetTopWriters Lambda endpoint
-      const WRITERS_API_URL = 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com/default/s7abt-GetTopWriters';
+      const WRITERS_API_URL = 'https://<your-api-id>.execute-api.<your-region>.amazonaws.com/default/s7abt-GetTopWriters';
 
       const response = await axios.get(WRITERS_API_URL);
       const data = response.data;
@@ -561,13 +571,13 @@ export const searchApi = {
     }
   },
 
-  // Search articles by tags using the new dedicated Tags API
+  // Search articles by tags using the dedicated Tags API
   byTags: async (tags: string[], limit = 20, offset = 0) => {
     try {
       console.log('Fetching articles by tags using Tags API:', tags);
 
-      // Use the new dedicated Tags API endpoint
-      const TAGS_API_URL = 'https://<your-api-id>.execute-api.me-central-1.amazonaws.com/default/GetArticlesByTags';
+      // Use the GetArticlesByTags endpoint (separate from NEXT_PUBLIC_TAGS_API_URL which is for tag ID lookups)
+      const TAGS_API_URL = `${API_BASE_URL}/GetArticlesByTags`;
       const tagsParam = tags.join(',');
       const url = `${TAGS_API_URL}?tags=${encodeURIComponent(tagsParam)}&limit=${limit}&offset=${offset}`;
 

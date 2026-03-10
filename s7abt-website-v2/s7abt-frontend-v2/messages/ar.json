@@ -92,7 +92,8 @@
     "privacyPolicy": "سياسة الخصوصية",
     "termsOfService": "شروط الخدمة",
     "tags": "الوسوم",
-    "rights": "جميع الحقوق محفوظة."
+    "rights": "جميع الحقوق محفوظة.",
+    "developedWith": "تم التطوير بواسطة {email} و {claude}"
   },
   "contactPage": {
     "hero": {

@@ -88,6 +88,12 @@ export default function Footer() {
           <p className="text-muted-blue text-sm">
             © 2025 {locale === 'ar' ? 'سحابة' : 'S7abt.com'}. {t('rights')}
           </p>
+          <p className="text-muted-blue text-xs mt-2">
+            {t('developedWith', {
+              email: 'M.alshreef@gmail.com',
+              claude: 'Claude.ai'
+            })}
+          </p>
         </div>
       </div>
     </footer>

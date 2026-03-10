@@ -34,9 +34,9 @@ export default async function HomePage({ params }: HomePageProps) {
     ]);
 
     const articles = articlesData.status === 'fulfilled' ? (articlesData.value.articles || []) : [];
+    const hasMore = articlesData.status === 'fulfilled' ? (articlesData.value.pagination?.hasMore !== false) : false;
     const premiumArticles = premiumData.status === 'fulfilled' ? (premiumData.value.articles || []) : [];
     const sections = sectionsData.status === 'fulfilled' ? (sectionsData.value.sections || []) : [];
-    // REMOVED: const tags = tagsData.tags || []; - no longer needed
 
     return (
       <main className="min-h-screen">
@@ -45,7 +45,7 @@ export default async function HomePage({ params }: HomePageProps) {
         <SearchFilterSection />
 
         <PremiumArticlesSection articles={premiumArticles} locale={locale} />
-        <AllContentSection articles={articles} hasMore={articlesData.pagination?.hasMore !== false} />
+        <AllContentSection articles={articles} hasMore={hasMore} />
         <CategoriesSection sections={sections} />
         <VisionSection />
 

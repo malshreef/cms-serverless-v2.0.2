@@ -8,6 +8,7 @@ import ArticleContent from '@/components/article/ArticleContent';
 import RelatedArticles from '@/components/article/RelatedArticles';
 import ReadingProgress from '@/components/ui/ReadingProgress';
 import ShareButtons from '@/components/article/ShareButtons';
+import CommentsSection from '@/components/article/CommentsSection';
 import Breadcrumbs, { BreadcrumbItem } from '@/components/ui/Breadcrumbs';
 import { articlesApi, usersApi, searchApi, Article, ShareStats } from '@/lib/api/client';
 import { calculateReadingTime, formatReadingTime } from '@/lib/readingTime';
@@ -228,9 +229,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                     <div className="font-semibold text-charcoal">
                       {authorName}
                     </div>
-                    <div className="text-sm">
-                      {locale === 'ar' ? 'خبير تقني' : 'Tech Expert'}
-                    </div>
+
                   </div>
                 </div>
 
@@ -340,6 +339,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
                 {/* Related Articles */}
                 <RelatedArticles articles={relatedArticles} locale={locale} isRTL={isRTL} />
+
+                {/* Comments Section */}
+                <CommentsSection
+                  articleId={article.s7b_article_id}
+                  comments={article.comments || []}
+                  locale={locale}
+                  isRTL={isRTL}
+                />
               </article>
             </div>
           </div>
