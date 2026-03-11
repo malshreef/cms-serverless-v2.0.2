@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { newsAPI } from '../lib/api';
 import ImageUpload from '../components/ImageUpload';
+import AIImageGenerator from '../components/AIImageGenerator';
 import { buildImageUrl } from '../lib/imageUtils';
 import {
   Save,
@@ -300,6 +301,16 @@ const NewsForm = () => {
               folder="news"
               label="صورة الخبر"
             />
+
+            {/* AI Image Generator */}
+            <div className="pt-4 border-t border-border-blue">
+              <AIImageGenerator
+                title={formData.title}
+                content={formData.body || formData.brief || ''}
+                type="news"
+                onSelect={(imageKey) => setFormData(prev => ({ ...prev, image: imageKey }))}
+              />
+            </div>
 
           </div>
         </div>

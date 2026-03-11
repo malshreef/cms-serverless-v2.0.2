@@ -1,104 +1,57 @@
-const { TwitterApi } = require('twitter-api-v2');
 const { query } = require('./shared/db');
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 
-let twitterClient = null;
-let secretCache = null;
-const SECRET_CACHE_TTL = 300000; // 5 minutes
-let secretCacheTime = 0;
+if (!process.env.AWS_REGION) {
+  throw new Error('AWS_REGION environment variable is not set');
+}
+const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
+const TWITTER_FUNCTION_NAME = process.env.TWITTER_FUNCTION_NAME || 's7abt-tweets-twitter-publish';
+
+const MAX_RETRIES = 5;
+const TRANSIENT_ERROR_CODES = [500, 502, 503, 504];
 
 /**
- * Sanitize credential string - removes all whitespace and hidden characters
- * This handles issues with copy/paste from web pages that may include
- * non-breaking spaces, zero-width characters, or other Unicode whitespace
+ * Check if an error is transient (worth retrying)
  */
-function sanitizeCredential(value) {
-  if (!value || typeof value !== 'string') return '';
-
-  return value
-    // Remove all types of whitespace including Unicode variants
-    .replace(/[\s\u00A0\u200B\u200C\u200D\uFEFF\r\n\t]/g, '')
-    // Remove any quotes that might have been accidentally included
-    .replace(/^["']|["']$/g, '')
-    .trim();
+function isTransientError(errorMessage) {
+  if (!errorMessage) return false;
+  return TRANSIENT_ERROR_CODES.some(code => errorMessage.includes(`code ${code}`))
+    || errorMessage.includes('ETIMEDOUT')
+    || errorMessage.includes('ECONNRESET')
+    || errorMessage.includes('socket hang up')
+    || errorMessage.includes('Lambda invocation failed');
 }
 
 /**
- * Get Twitter API credentials from Secrets Manager
+ * Parse retry count from error_message field.
+ * Format: "[retry:N] error message"
  */
-async function getTwitterCredentials() {
-  const now = Date.now();
-
-  if (secretCache && (now - secretCacheTime) < SECRET_CACHE_TTL) {
-    return secretCache;
-  }
-
-  if (!process.env.AWS_REGION) {
-    throw new Error('AWS_REGION environment variable is not set');
-  }
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION });
-  const secretName = process.env.TWITTER_SECRET_NAME || 's7abt/twitter/credentials';
-
-  try {
-    const response = await client.send(
-      new GetSecretValueCommand({ SecretId: secretName })
-    );
-
-    const secret = JSON.parse(response.SecretString);
-    secretCache = secret;
-    secretCacheTime = now;
-
-    return secret;
-  } catch (err) {
-    console.error('Error fetching Twitter credentials:', err);
-    throw new Error('Failed to retrieve Twitter API credentials');
-  }
+function parseRetryCount(errorMessage) {
+  if (!errorMessage) return 0;
+  const match = errorMessage.match(/^\[retry:(\d+)\]/);
+  return match ? parseInt(match[1], 10) : 0;
 }
 
 /**
- * Initialize Twitter client
+ * Format error message with retry count
  */
-async function getTwitterClient() {
-  // Always create a fresh client to avoid stale credentials
-  const credentials = await getTwitterCredentials();
-
-  // Sanitize credentials to remove whitespace and hidden characters
-  const cleanCredentials = {
-    appKey: sanitizeCredential(credentials.api_key),
-    appSecret: sanitizeCredential(credentials.api_secret),
-    accessToken: sanitizeCredential(credentials.access_token),
-    accessSecret: sanitizeCredential(credentials.access_token_secret),
-  };
-
-  // Validate credentials exist
-  if (!cleanCredentials.appKey || !cleanCredentials.appSecret ||
-      !cleanCredentials.accessToken || !cleanCredentials.accessSecret) {
-    throw new Error('Missing Twitter API credentials in Secrets Manager');
-  }
-
-  console.log('Initializing Twitter client with credentials:', {
-    appKey: cleanCredentials.appKey.substring(0, 5) + '...',
-    appKeyLength: cleanCredentials.appKey.length,
-    appSecretLength: cleanCredentials.appSecret.length,
-    accessTokenLength: cleanCredentials.accessToken.length,
-    accessSecretLength: cleanCredentials.accessSecret.length,
-    hasAppSecret: !!cleanCredentials.appSecret,
-    hasAccessToken: !!cleanCredentials.accessToken,
-    hasAccessSecret: !!cleanCredentials.accessSecret,
-  });
-
-  return new TwitterApi(cleanCredentials);
+function formatErrorWithRetry(retryCount, errorMessage) {
+  return `[retry:${retryCount}] ${errorMessage}`;
 }
 
 /**
  * Scheduled Lambda handler - Runs daily at 3:00 PM Riyadh (12:00 UTC)
- * Publishes all pending tweets that are scheduled for today or earlier
+ * Publishes all pending tweets that are scheduled for today or earlier.
+ * Uses split-Lambda pattern: this VPC Lambda handles DB, invokes non-VPC Lambda for Twitter API.
+ *
+ * Retry logic: transient errors (5xx, timeouts) keep status as 'pending'
+ * and retry up to MAX_RETRIES times. Permanent errors mark as 'failed' immediately.
  */
 exports.handler = async (event) => {
   console.log('Scheduled Tweet Publisher Event:', JSON.stringify(event, null, 2));
 
   try {
-    // Fetch tweets that are ready to be published
+    // Fetch tweets that are ready to be published (pending status)
     const now = new Date();
     const tweets = await query(
       `SELECT
@@ -106,13 +59,14 @@ exports.handler = async (event) => {
         s7b_tweet_text as tweet_text,
         s7b_tweet_hashtags as hashtags,
         s7b_article_url as article_url,
-        s7b_tweet_scheduled_time as scheduled_time
+        s7b_tweet_scheduled_time as scheduled_time,
+        s7b_tweet_error_message as error_message
       FROM s7b_tweets
       WHERE s7b_tweet_status = 'pending'
         AND s7b_tweet_deleted_at IS NULL
         AND s7b_tweet_scheduled_time <= ?
       ORDER BY s7b_tweet_scheduled_time ASC
-      LIMIT 10`,  // Process up to 10 tweets per run to avoid rate limits
+      LIMIT 10`,
       [now]
     );
 
@@ -129,16 +83,14 @@ exports.handler = async (event) => {
       };
     }
 
-    // Initialize Twitter client once
-    const client = await getTwitterClient();
-
     const results = {
       published: 0,
       failed: 0,
+      retried: 0,
       errors: []
     };
 
-    // Publish each tweet
+    // Publish each tweet via non-VPC Twitter Lambda
     for (const tweet of tweets) {
       try {
         // Prepare tweet text with hashtags
@@ -165,9 +117,9 @@ exports.handler = async (event) => {
           }
         }
 
-        // Post to Twitter
+        // Post to Twitter via non-VPC Lambda
         console.log(`Publishing tweet ${tweet.tweet_id}...`);
-        const response = await client.v2.tweet(tweetText);
+        const twitterResult = await invokeTwitterLambda(tweetText);
 
         // Update database with success
         await query(
@@ -179,14 +131,14 @@ exports.handler = async (event) => {
             s7b_tweet_error_message = NULL
           WHERE s7b_tweet_id = ?`,
           [
-            response.data.id,
-            `https://twitter.com/i/web/status/${response.data.id}`,
+            twitterResult.tweet_id,
+            twitterResult.tweet_url,
             tweet.tweet_id
           ]
         );
 
         results.published++;
-        console.log(`Successfully published tweet ${tweet.tweet_id} to Twitter: ${response.data.id}`);
+        console.log(`Successfully published tweet ${tweet.tweet_id} to Twitter: ${twitterResult.tweet_id}`);
 
         // Rate limiting: wait 1 second between tweets
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -194,22 +146,48 @@ exports.handler = async (event) => {
       } catch (tweetErr) {
         console.error(`Failed to publish tweet ${tweet.tweet_id}:`, tweetErr);
 
-        // Update database with failure
-        await query(
-          `UPDATE s7b_tweets SET
-            s7b_tweet_status = 'failed',
-            s7b_tweet_error_message = ?
-          WHERE s7b_tweet_id = ?`,
-          [
-            tweetErr.message || 'Unknown Twitter API error',
-            tweet.tweet_id
-          ]
-        );
+        const errorMsg = tweetErr.message || 'Unknown Twitter API error';
+        const currentRetryCount = parseRetryCount(tweet.error_message) + 1;
 
-        results.failed++;
+        if (isTransientError(errorMsg) && currentRetryCount < MAX_RETRIES) {
+          // Transient error - keep as pending for retry next run
+          await query(
+            `UPDATE s7b_tweets SET
+              s7b_tweet_error_message = ?
+            WHERE s7b_tweet_id = ?`,
+            [
+              formatErrorWithRetry(currentRetryCount, errorMsg),
+              tweet.tweet_id
+            ]
+          );
+
+          results.retried++;
+          console.log(`Tweet ${tweet.tweet_id} will retry (attempt ${currentRetryCount}/${MAX_RETRIES}): ${errorMsg}`);
+        } else {
+          // Permanent error or max retries exceeded - mark as failed
+          const failReason = currentRetryCount >= MAX_RETRIES
+            ? `Max retries (${MAX_RETRIES}) exceeded. Last error: ${errorMsg}`
+            : errorMsg;
+
+          await query(
+            `UPDATE s7b_tweets SET
+              s7b_tweet_status = 'failed',
+              s7b_tweet_error_message = ?
+            WHERE s7b_tweet_id = ?`,
+            [
+              failReason,
+              tweet.tweet_id
+            ]
+          );
+
+          results.failed++;
+          console.log(`Tweet ${tweet.tweet_id} permanently failed: ${failReason}`);
+        }
+
         results.errors.push({
           tweet_id: tweet.tweet_id,
-          error: tweetErr.message
+          error: errorMsg,
+          retry: currentRetryCount < MAX_RETRIES && isTransientError(errorMsg)
         });
       }
     }
@@ -220,7 +198,7 @@ exports.handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        message: `Published ${results.published} tweets, ${results.failed} failed`,
+        message: `Published ${results.published}, retried ${results.retried}, failed ${results.failed}`,
         ...results
       })
     };
@@ -236,3 +214,19 @@ exports.handler = async (event) => {
     };
   }
 };
+
+async function invokeTwitterLambda(tweetText) {
+  const response = await lambdaClient.send(new InvokeCommand({
+    FunctionName: TWITTER_FUNCTION_NAME,
+    InvocationType: 'RequestResponse',
+    Payload: JSON.stringify({ tweetText }),
+  }));
+
+  const payload = JSON.parse(Buffer.from(response.Payload).toString());
+
+  if (response.FunctionError) {
+    throw new Error(payload.errorMessage || 'Twitter Lambda invocation failed');
+  }
+
+  return payload;
+}

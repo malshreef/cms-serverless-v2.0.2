@@ -41,13 +41,25 @@ exports.handler = async (event) => {
 
     const whereClause = conditions.join(' AND ');
 
-    // Get total count
-    const countResult = await query(
-      `SELECT COUNT(*) as total FROM s7b_tweets WHERE ${whereClause}`,
-      queryParams
-    );
+    // Get total count and stats by status
+    const [countResult, statsResult] = await Promise.all([
+      query(
+        `SELECT COUNT(*) as total FROM s7b_tweets WHERE ${whereClause}`,
+        queryParams
+      ),
+      query(
+        `SELECT
+          COUNT(*) as total,
+          SUM(s7b_tweet_status = 'pending') as pending,
+          SUM(s7b_tweet_status = 'posted') as posted,
+          SUM(s7b_tweet_status = 'failed') as failed
+        FROM s7b_tweets
+        WHERE s7b_tweet_deleted_at IS NULL`
+      )
+    ]);
 
     const total = countResult[0].total;
+    const stats = statsResult[0];
 
     // Get tweets
     const tweets = await query(
@@ -75,7 +87,7 @@ exports.handler = async (event) => {
         s7b_tweet_updated_at as updated_at
       FROM s7b_tweets
       WHERE ${whereClause}
-      ORDER BY s7b_tweet_scheduled_time ASC, s7b_tweet_created_at DESC
+      ORDER BY s7b_tweet_created_at DESC, s7b_tweet_scheduled_time DESC
       LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
       queryParams
     );
@@ -100,6 +112,12 @@ exports.handler = async (event) => {
         limit,
         total,
         totalPages: Math.ceil(total / limit)
+      },
+      stats: {
+        total: Number(stats.total) || 0,
+        pending: Number(stats.pending) || 0,
+        posted: Number(stats.posted) || 0,
+        failed: Number(stats.failed) || 0
       }
     });
 

@@ -1,0 +1,17 @@
+{
+  "name": "comments",
+  "version": "1.0.0",
+  "main": "delete.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1005.0",
+    "mysql2": "^3.19.1"
+  }
+}

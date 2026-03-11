@@ -9,6 +9,8 @@ import {
   Cog6ToothIcon,
   UserGroupIcon,
   ChartBarIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { getRoleBadgeColor } from '../../lib/permissions';
@@ -20,9 +22,11 @@ const navigation = [
   { name: 'التغريدات', href: '/tweets', icon: ChatBubbleLeftRightIcon },
   { name: 'الأقسام', href: '/sections', icon: FolderIcon },
   { name: 'الوسوم', href: '/tags', icon: TagIcon },
+  { name: 'التعليقات', href: '/comments', icon: ChatBubbleOvalLeftEllipsisIcon },
+  { name: 'المحتوى الذكي', href: '/ai-content', icon: SparklesIcon },
   { name: 'المستخدمون', href: '/users', icon: UserGroupIcon },
-  { name: 'الإعدادات', href: '/settings', icon: Cog6ToothIcon },
   { name: 'التحليلات', href: '/insights', icon: ChartBarIcon },
+  { name: 'الإعدادات', href: '/settings', icon: Cog6ToothIcon },
 ];
 
 function classNames(...classes) {

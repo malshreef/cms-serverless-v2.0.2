@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { articlesAPI, sectionsAPI, tagsAPI } from '../lib/api';
 import ImageUpload from '../components/ImageUpload';
+import AIImageGenerator from '../components/AIImageGenerator';
 import RichTextEditor from '../components/RichTextEditor';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -359,13 +360,23 @@ const ArticleForm = () => {
         {/* Main Image */}
         <div className="bg-cloud-white rounded-lg border border-border-blue shadow-sm p-6">
           <h3 className="text-xl font-bold text-charcoal mb-6 text-right">الصورة الرئيسية</h3>
-          
+
           <ImageUpload
             value={formData.mainImageKey}
             onChange={(imageKey) => setFormData(prev => ({ ...prev, mainImageKey: imageKey }))}
             folder="articles"
             label="صورة المقال"
           />
+
+          {/* AI Image Generator */}
+          <div className="mt-6 pt-6 border-t border-border-blue">
+            <AIImageGenerator
+              title={formData.title}
+              content={formData.excerpt || formData.sections?.[0]?.content || ''}
+              type="article"
+              onSelect={(imageKey) => setFormData(prev => ({ ...prev, mainImageKey: imageKey }))}
+            />
+          </div>
         </div>
 
         {/* Article Sections */}

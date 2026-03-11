@@ -150,6 +150,10 @@ export const commentsAPI = {
   delete: (id) => api.delete(`/admin/comments/${id}`),
 };
 
+export const aiImagesAPI = {
+  generate: (data) => api.post('/admin/ai/generate-images', data),
+};
+
 export const aiContentAPI = {
   listTopics: (params) => api.get('/admin/ai-content/topics', { params }),
   createTopic: (data) => api.post('/admin/ai-content/topics', data),

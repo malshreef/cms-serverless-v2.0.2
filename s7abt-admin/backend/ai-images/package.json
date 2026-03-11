@@ -1,0 +1,9 @@
+{
+  "name": "s7abt-ai-images",
+  "version": "1.0.0",
+  "description": "AI image generation Lambda for S7abt admin",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/client-secrets-manager": "^3.600.0"
+  }
+}

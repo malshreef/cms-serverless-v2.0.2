@@ -25,21 +25,27 @@ const Tweets = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTweet, setSelectedTweet] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [stats, setStats] = useState({ total: 0, pending: 0, posted: 0, failed: 0 });
 
   useEffect(() => {
-    fetchTweets();
+    setCurrentPage(1);
+    fetchTweets(1);
   }, [filter]);
 
-  const fetchTweets = async () => {
+  const fetchTweets = async (page) => {
     setLoading(true);
+    const targetPage = page || currentPage;
     try {
-      const params = {};
-      
+      const params = { page: targetPage, limit: 20 };
+
       // Add status filter if not 'all'
       if (filter !== 'all') {
         params.status = filter;
       }
-      
+
       // Add search term if provided
       if (searchTerm) {
         params.search = searchTerm;
@@ -47,10 +53,19 @@ const Tweets = () => {
 
       const response = await tweetsAPI.list(params);
       console.log('Tweets API response:', response.data);
-      
+
       // Handle response structure
-      const tweetsData = response.data.data?.tweets || response.data.tweets || response.data || [];
+      const responseData = response.data.data || response.data || {};
+      const tweetsData = responseData.tweets || [];
+      const pagination = responseData.pagination || {};
+
       setTweets(Array.isArray(tweetsData) ? tweetsData : []);
+      setCurrentPage(pagination.page || targetPage);
+      setTotalPages(pagination.totalPages || 1);
+      setTotalCount(pagination.total || tweetsData.length);
+      if (responseData.stats) {
+        setStats(responseData.stats);
+      }
     } catch (error) {
       console.error('Error fetching tweets:', error);
       alert('فشل في تحميل التغريدات');
@@ -60,7 +75,13 @@ const Tweets = () => {
   };
 
   const handleSearch = () => {
-    fetchTweets();
+    setCurrentPage(1);
+    fetchTweets(1);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    fetchTweets(page);
   };
 
   const handleSearchKeyPress = (e) => {
@@ -160,12 +181,7 @@ const Tweets = () => {
     }
   };
 
-  const stats = {
-    total: tweets.length,
-    pending: tweets.filter(t => t.status === 'pending').length,
-    posted: tweets.filter(t => t.status === 'posted').length,
-    failed: tweets.filter(t => t.status === 'failed').length,
-  };
+  // Stats are fetched from the API (total DB counts, not current page)
 
   if (loading) {
     return (
@@ -398,6 +414,56 @@ const Tweets = () => {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between bg-cloud-white rounded-lg border border-border-blue shadow-sm px-6 py-3">
+          <p className="text-sm text-muted-blue">
+            إجمالي {totalCount} تغريدة - صفحة {currentPage} من {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="px-3 py-1 border border-border-blue rounded-lg hover:bg-sky-bg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              السابق
+            </button>
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+              let page;
+              if (totalPages <= 5) {
+                page = i + 1;
+              } else if (currentPage <= 3) {
+                page = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                page = totalPages - 4 + i;
+              } else {
+                page = currentPage - 2 + i;
+              }
+              return (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-1 rounded-lg text-sm transition ${
+                    currentPage === page
+                      ? 'bg-sky-cta text-white'
+                      : 'border border-border-blue hover:bg-sky-bg'
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className="px-3 py-1 border border-border-blue rounded-lg hover:bg-sky-bg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              التالي
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* View Modal */}
       {showModal && selectedTweet && (

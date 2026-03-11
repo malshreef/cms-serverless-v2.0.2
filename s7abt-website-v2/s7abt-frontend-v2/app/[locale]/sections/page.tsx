@@ -37,16 +37,42 @@ export default function SectionsPage() {
     fetchSections();
   }, []);
 
-  const icons = [
-    'fa-heart-pulse',
-    'fa-briefcase',
-    'fa-lightbulb',
-    'fa-dumbbell',
-    'fa-rocket',
-    'fa-chart-line',
-    'fa-code',
-    'fa-database',
+  // Map section keywords to relevant icons (matches partial names)
+  const sectionIconRules: { keywords: string[]; icon: string; prefix: string }[] = [
+    { keywords: ['أمازون', 'amazon', 'aws'], icon: 'fa-aws', prefix: 'fa-brands' },
+    { keywords: ['أزور', 'azure', 'microsoft'], icon: 'fa-microsoft', prefix: 'fa-brands' },
+    { keywords: ['قوقل', 'جوجل', 'google', 'gcp'], icon: 'fa-google', prefix: 'fa-brands' },
+    { keywords: ['علي بابا', 'alibaba', 'alicloud'], icon: 'fa-cloud-arrow-up', prefix: 'fa-solid' },
+    { keywords: ['سحابية', 'cloud'], icon: 'fa-cloud', prefix: 'fa-solid' },
+    { keywords: ['مقالات', 'articles', 'عامة', 'general'], icon: 'fa-newspaper', prefix: 'fa-solid' },
+    { keywords: ['أمن', 'security', 'حماية'], icon: 'fa-shield-halved', prefix: 'fa-solid' },
+    { keywords: ['شبكات', 'network', 'networking'], icon: 'fa-network-wired', prefix: 'fa-solid' },
+    { keywords: ['قواعد بيانات', 'database', 'بيانات'], icon: 'fa-database', prefix: 'fa-solid' },
+    { keywords: ['برمجة', 'programming', 'تطوير', 'development', 'code'], icon: 'fa-code', prefix: 'fa-solid' },
+    { keywords: ['ذكاء اصطناعي', 'ai', 'artificial'], icon: 'fa-robot', prefix: 'fa-solid' },
+    { keywords: ['لينكس', 'linux'], icon: 'fa-linux', prefix: 'fa-brands' },
+    { keywords: ['devops', 'ديف أوبس'], icon: 'fa-gears', prefix: 'fa-solid' },
+    { keywords: ['docker', 'حاويات', 'containers'], icon: 'fa-docker', prefix: 'fa-brands' },
+    { keywords: ['kubernetes', 'k8s'], icon: 'fa-dharmachakra', prefix: 'fa-solid' },
+    { keywords: ['serverless', 'سيرفرلس', 'lambda'], icon: 'fa-bolt', prefix: 'fa-solid' },
   ];
+
+  const fallbackIcons = [
+    { icon: 'fa-server', prefix: 'fa-solid' },
+    { icon: 'fa-database', prefix: 'fa-solid' },
+    { icon: 'fa-code', prefix: 'fa-solid' },
+    { icon: 'fa-shield-halved', prefix: 'fa-solid' },
+  ];
+
+  const getIconForSection = (name: string, index: number) => {
+    const lowerName = name.toLowerCase();
+    const matched = sectionIconRules.find(rule =>
+      rule.keywords.some(kw => lowerName.includes(kw.toLowerCase()) || name.includes(kw))
+    );
+    return matched
+      ? { icon: matched.icon, prefix: matched.prefix }
+      : fallbackIcons[index % fallbackIcons.length];
+  };
 
   return (
     <main className="min-h-screen">
@@ -96,7 +122,7 @@ export default function SectionsPage() {
                     {/* Icon */}
                     <div className="w-16 h-16 mx-auto mb-6 bg-sky-cta/10 rounded-full flex items-center justify-center group-hover:bg-sky-cta transition-colors duration-200">
                       <i
-                        className={`fa-solid ${icons[index % icons.length]} text-3xl text-sky-cta group-hover:text-white transition-colors duration-200`}
+                        className={`${getIconForSection(section.s7b_section_name, index).prefix} ${getIconForSection(section.s7b_section_name, index).icon} text-3xl text-sky-cta group-hover:text-white transition-colors duration-200`}
                       ></i>
                     </div>
 

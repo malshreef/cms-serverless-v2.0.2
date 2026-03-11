@@ -82,20 +82,18 @@ const Dashboard = () => {
 
       if (permissions.can('tweets', 'list')) {
         try {
-          const tweetsResponse = await tweetsAPI.list();
+          const tweetsResponse = await tweetsAPI.list({ limit: 1, status: 'pending' });
           const tweetsData = tweetsResponse.data?.data || tweetsResponse.data || {};
+          const apiStats = tweetsData.stats || {};
+
+          totalTweets = apiStats.total || 0;
+          pendingTweets = apiStats.pending || 0;
+          postedTweets = apiStats.posted || 0;
+          failedTweets = apiStats.failed || 0;
+
+          // Next scheduled tweet is the first pending tweet returned
           const tweets = tweetsData.tweets || [];
-
-          totalTweets = tweets.length;
-          pendingTweets = tweets.filter(t => t.status === 'pending').length;
-          postedTweets = tweets.filter(t => t.status === 'posted').length;
-          failedTweets = tweets.filter(t => t.status === 'failed').length;
-
-          // Get next scheduled tweet
-          const pendingList = tweets
-            .filter(t => t.status === 'pending')
-            .sort((a, b) => a.scheduled_time - b.scheduled_time);
-          nextTweet = pendingList.length > 0 ? pendingList[0] : null;
+          nextTweet = tweets.length > 0 ? tweets[0] : null;
         } catch (tweetsErr) {
           console.log('Tweets not available:', tweetsErr);
         }
