@@ -9,21 +9,47 @@ Deployable to **any AWS region** -- no hardcoded regions or account-specific val
 ### Public Website
 - **Bilingual Support** -- Full Arabic and English localization with RTL support
 - **Content Types** -- Articles, news, sections, tags, and author profiles
+- **Smart Section Icons** -- Automatic keyword-matched icons (AWS, Azure, Google Cloud, security, etc.)
+- **Article Comments** -- Public comment submission with moderation workflow
 - **Modern UI** -- Responsive design built with Next.js 14 and Tailwind CSS
 - **SEO Optimized** -- Server-side rendering, meta tags, and sitemap generation
 - **Social Sharing** -- Share buttons with real-time statistics tracking
 
 ### Admin Panel
-- **Role-Based Access Control** -- Four user roles: Admin, Content Manager, Content Specialist, Viewer
+- **Role-Based Access Control** -- Four user roles with backend RBAC authorization
+- **AI Image Generator** -- Generate and select from 3 DALL-E images in 4 styles
+- **Comment Moderation** -- Approve, reject, delete comments with search and filtering
 - **Rich Text Editor** -- TinyMCE integration for article composition
 - **Media Management** -- S3-based image upload with presigned URLs
+- **Tweet Management** -- Paginated list with server-side stats and filtering
 - **Analytics Dashboard** -- Content performance metrics with Recharts visualizations
 - **User Management** -- Full CRUD operations for admin users via Cognito
+- **Scheduled Publishing** -- Set future publish dates for articles
+
+### AI Features
+- **AI Image Generation** -- Generate article/news images using DALL-E 3 with 4 style options:
+  - Cartoon -- Vibrant Pixar/Disney-inspired illustrations
+  - Official -- Clean, professional corporate style
+  - Lego -- Fun LEGO brick art style
+  - Minimal -- Ultra-minimalist flat illustrations
+- **AI-Powered Tweet Generation** -- Uses OpenAI GPT-4 to generate engaging tweets from articles
+- **Smart Content Suggestions** -- AI-assisted topic and content ideas
+
+### Comments & Moderation
+- **Article Comments** -- Public comment submission on articles
+- **Admin Moderation** -- Approve, reject, or delete comments from admin panel
+- **Soft-Delete** -- Comments use soft-delete pattern for data safety
 
 ### Social Media Integration
-- **AI-Powered Tweet Generation** -- Uses OpenAI GPT-4 to generate engaging tweets from articles
-- **Automated Publishing** -- Scheduled tweet publishing via EventBridge
+- **Automated Publishing** -- Scheduled tweet publishing via EventBridge with retry logic
+- **Split-Lambda Architecture** -- VPC Lambda for DB, non-VPC Lambda for Twitter API
+- **Transient Error Retry** -- Up to 5 automatic retries for temporary failures (5xx, timeouts)
 - **Twitter/X API Integration** -- Direct posting to Twitter/X
+- **Paginated Tweet Management** -- Server-side pagination with overall stats
+
+### Scheduled Publishing
+- **Article Scheduling** -- Set future publish dates for articles
+- **Automatic Publishing** -- EventBridge triggers publishing at scheduled time
 
 ### Infrastructure
 - **Fully Serverless** -- AWS Lambda, API Gateway, S3, RDS, DynamoDB
@@ -42,7 +68,8 @@ Deployable to **any AWS region** -- no hardcoded regions or account-specific val
 | Database | AWS RDS MySQL 8.0 |
 | Authentication | AWS Cognito |
 | Storage | AWS S3 |
-| AI | OpenAI GPT-4 (via Secrets Manager) |
+| AI (Tweets) | OpenAI GPT-4 (via Secrets Manager) |
+| AI (Images) | OpenAI DALL-E 3 (via Secrets Manager) |
 | Social Media | Twitter/X API v2 |
 | Infrastructure | AWS SAM, CloudFormation |
 
@@ -62,7 +89,9 @@ cms-serverless-v2.0.2/
 │   │   ├── auth/                  # Authentication & dashboard
 │   │   ├── analytics/             # Insights & metrics
 │   │   ├── users/                 # Cognito user management
-│   │   └── tweets/                # Tweet generation & publishing
+│   │   ├── tweets/                # Tweet generation & publishing
+│   │   ├── comments/              # Comment moderation
+│   │   └── ai-images/             # AI image generation (DALL-E 3)
 │   └── infrastructure/            # SAM template (Admin API)
 ├── s7abt-api-backend/             # Public API
 │   ├── articles/                  # Article endpoints (list, get, share)
@@ -111,7 +140,7 @@ All credentials are stored in Secrets Manager -- never hardcoded. You must creat
 | Secret | Required | Purpose |
 |--------|----------|---------|
 | `s7abt/database/credentials` | Yes | MySQL connection (host, port, username, password, dbname) |
-| `s7abt/openai/credentials` | No | OpenAI API key for tweet generation |
+| `s7abt/openai/credentials` | No | OpenAI API key for tweet generation and AI image generation (DALL-E 3) |
 | `s7abt/twitter/credentials` | No | Twitter/X API keys for publishing |
 
 See **[SECRETS-SETUP.md](SECRETS-SETUP.md)** for exact JSON formats and creation commands.
@@ -144,6 +173,8 @@ See [DEPLOYMENT.md - Step 6](DEPLOYMENT.md#step-6-create-admin-users-in-cognito)
 | GET | `/GetArticlesByTagid?tagId={id}` | Articles by tag ID |
 | GET | `/GetArticlesByTags?tags={names}` | Articles by tag names |
 | GET | `/users/{id}` | Get user/author profile |
+| POST | `/articles/{id}/comments` | Submit a comment on an article |
+| GET | `/contact` | Contact form submission |
 
 ### Admin API (Cognito Protected)
 | Method | Endpoint | Description |
@@ -151,15 +182,20 @@ See [DEPLOYMENT.md - Step 6](DEPLOYMENT.md#step-6-create-admin-users-in-cognito)
 | GET | `/auth/me` | Get current authenticated user |
 | GET | `/admin/dashboard/stats` | Dashboard statistics |
 | GET | `/admin/analytics/insights` | Analytics insights |
-| GET/POST | `/articles` | List / Create articles |
-| PUT/DELETE | `/articles/{id}` | Update / Delete article |
-| POST | `/articles/image-upload-url` | Get S3 presigned upload URL |
-| GET/POST | `/news` | List / Create news |
-| PUT/DELETE | `/news/{id}` | Update / Delete news |
-| GET/POST | `/sections` | List / Create sections |
-| PUT/DELETE | `/sections/{id}` | Update / Delete section |
-| GET/POST | `/tags` | List / Create tags |
-| PUT/DELETE | `/tags/{id}` | Update / Delete tag |
+| GET/POST | `/admin/articles` | List / Create articles |
+| PUT/DELETE | `/admin/articles/{id}` | Update / Delete article |
+| POST | `/admin/articles/image-upload-url` | Get S3 presigned upload URL |
+| GET/POST | `/admin/news` | List / Create news |
+| PUT/DELETE | `/admin/news/{id}` | Update / Delete news |
+| GET/POST | `/admin/sections` | List / Create sections |
+| PUT/DELETE | `/admin/sections/{id}` | Update / Delete section |
+| GET/POST | `/admin/tags` | List / Create tags |
+| PUT/DELETE | `/admin/tags/{id}` | Update / Delete tag |
+| GET | `/admin/tweets` | List tweets (paginated, with stats) |
+| POST | `/admin/ai/generate-images` | Generate 3 AI images (DALL-E 3) |
+| GET | `/admin/comments` | List comments (with filtering) |
+| PATCH | `/admin/comments/{id}/status` | Approve / Reject comment |
+| DELETE | `/admin/comments/{id}` | Delete comment |
 
 ## Documentation
 
