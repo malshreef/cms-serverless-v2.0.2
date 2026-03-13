@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatImageUrl } from '@/lib/utils/image';
@@ -12,15 +12,7 @@ interface ArticleContentProps {
   isRTL: boolean;
 }
 
-interface TocItem {
-  id: string;
-  text: string;
-  level: number;
-}
-
 export default function ArticleContent({ article, locale, isRTL }: ArticleContentProps) {
-  const [tocItems, setTocItems] = useState<TocItem[]>([]);
-  const [activeId, setActiveId] = useState<string>('');
   const articleBodyRef = useRef<HTMLDivElement>(null);
 
   // Add copy buttons to code blocks
@@ -55,66 +47,6 @@ export default function ArticleContent({ article, locale, isRTL }: ArticleConten
     });
   }, [locale]);
 
-  useEffect(() => {
-    if (!articleBodyRef.current) return;
-
-    // Extract headings from article body
-    const headings = articleBodyRef.current.querySelectorAll('h1, h2, h3');
-
-    const items: TocItem[] = [];
-    headings.forEach((heading, index) => {
-      // Use existing ID or generate one
-      const id = heading.id || `heading-${index}`;
-      const text = heading.textContent || '';
-      const level = parseInt(heading.tagName.substring(1));
-
-      // Ensure ID is set on heading
-      if (!heading.id) {
-        heading.id = id;
-      }
-
-      items.push({ id, text, level });
-    });
-
-    setTocItems(items);
-
-    // Intersection Observer for active heading
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: '-100px 0px -80% 0px' }
-    );
-
-    headings.forEach((heading) => {
-      observer.observe(heading);
-    });
-
-    return () => {
-      headings.forEach((heading) => {
-        observer.unobserve(heading);
-      });
-    };
-  }, []);
-
-  const scrollToHeading = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      const offset = 120;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth',
-      });
-    }
-  };
-
   const formatDate = (dateString: string) => {
     if (!dateString) return locale === 'ar' ? 'غير محدد' : 'Unknown';
     const normalized = dateString.replace(' ', 'T');
@@ -126,29 +58,6 @@ export default function ArticleContent({ article, locale, isRTL }: ArticleConten
       day: 'numeric',
     });
   };
-
-  // Update TOC in sidebar
-  useEffect(() => {
-    const tocNav = document.querySelector('#table-of-contents ul');
-    if (tocNav && tocItems.length > 0) {
-      // Clear existing content
-      tocNav.innerHTML = '';
-
-      // Create TOC items
-      tocItems.forEach((item) => {
-        const li = document.createElement('li');
-        const button = document.createElement('button');
-        button.textContent = item.text;
-        button.className = `text-muted-blue hover:text-sky-cta transition-all duration-200 block py-1 text-${isRTL ? 'right' : 'left'} w-full text-sm ${activeId === item.id ? 'text-sky-cta font-semibold' : ''
-          } ${item.level > 2 ? (isRTL ? 'pr-4' : 'pl-4') : ''} hover:${isRTL ? 'pr-2' : 'pl-2'}`;
-
-        button.addEventListener('click', () => scrollToHeading(item.id));
-
-        li.appendChild(button);
-        tocNav.appendChild(li);
-      });
-    }
-  }, [tocItems, activeId, isRTL]);
 
   return (
     <div>

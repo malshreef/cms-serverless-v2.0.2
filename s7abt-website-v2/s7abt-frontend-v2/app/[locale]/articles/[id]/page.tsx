@@ -9,6 +9,7 @@ import RelatedArticles from '@/components/article/RelatedArticles';
 import ReadingProgress from '@/components/ui/ReadingProgress';
 import ShareButtons from '@/components/article/ShareButtons';
 import CommentsSection from '@/components/article/CommentsSection';
+import TableOfContents from '@/components/article/TableOfContents';
 import Breadcrumbs, { BreadcrumbItem } from '@/components/ui/Breadcrumbs';
 import { articlesApi, usersApi, searchApi, Article, ShareStats } from '@/lib/api/client';
 import { calculateReadingTime, formatReadingTime } from '@/lib/readingTime';
@@ -264,16 +265,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               <aside className={`lg:col-span-1 ${isRTL ? 'lg:col-start-4' : ''}`}>
                 <div className="sticky top-32">
                   {/* Table of Contents */}
-                  <div className="bg-sky-bg/30 rounded-xl p-6 mb-[30px]">
-                    <h3 className={`text-lg font-poppins font-semibold text-charcoal mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>
-                      {locale === 'ar' ? 'محتويات المقال' : 'Table of Contents'}
-                    </h3>
-                    <nav id="table-of-contents">
-                      <ul className={`space-y-3 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        {/* TOC will be populated by client component */}
-                      </ul>
-                    </nav>
-                  </div>
+                  <TableOfContents locale={locale} isRTL={isRTL} />
 
                   {/* Author Card */}
                   <div className="bg-white border border-border-blue rounded-xl p-6 mb-[30px] shadow-sm">
